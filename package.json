@@ -12,7 +12,7 @@
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-label": "^2.1.7",
     "class-variance-authority": "^0.7.1",
-    "firebase": "^12.2.1",
+    "firebase": "^12.3.0",
     "firebase-admin": "^13.5.0",
     "js-cookie": "^3.0.5",
     "jspdf": "^3.0.3",

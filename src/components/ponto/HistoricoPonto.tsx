@@ -43,6 +43,18 @@ interface DadosGrafico {
   completo: boolean;
 }
 
+type TooltipEntry = {
+  dataKey?: string;
+  value?: number | string;
+  color?: string;
+};
+
+type CustomTooltipProps = {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: string;
+};
+
 export default function HistoricoPonto({ cpf }: HistoricoPontoProps) {
   const [historico, setHistorico] = useState<EstatisticasDia[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -200,21 +212,27 @@ export default function HistoricoPonto({ cpf }: HistoricoPontoProps) {
     }
   ].filter(item => item.value > 0);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 border rounded-lg shadow-lg">
-          <p className="font-semibold">{`Data: ${label}`}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color }}>
-              {`${entry.dataKey === 'horas' ? 'Horas' : 'Registros'}: ${entry.value}${entry.dataKey === 'horas' ? 'h' : ''}`}
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-3 border rounded-lg shadow-lg">
+        <p className="font-semibold">{`Data: ${label}`}</p>
+        {payload.map((entry, index) => {
+          const key = entry?.dataKey ?? `value-${index}`;
+          const value = entry?.value ?? '';
+          // se `entry.dataKey` for 'horas' adiciona 'h'
+          const suffix = entry?.dataKey === 'horas' ? 'h' : '';
+          return (
+            <p key={index} style={{ color: entry?.color }}>
+              {`${key === 'horas' ? 'Horas' : 'Registros'}: ${value}${suffix}`}
             </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
+          );
+        })}
+      </div>
+    );
+  }
+  return null;
+};
 
   if (carregando) {
     return (
@@ -358,7 +376,7 @@ export default function HistoricoPonto({ cpf }: HistoricoPontoProps) {
                   <XAxis dataKey="data" />
                   <YAxis domain={[0, 1]} />
                   <Tooltip 
-                    formatter={(value: any, name: string) => [
+                    formatter={(value: unknown, name: string) => [
                       value === 1 ? 'Sim' : 'Não',
                       name === 'trabalhado' ? 'Trabalhou' : 'Completo'
                     ]}

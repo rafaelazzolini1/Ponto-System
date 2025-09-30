@@ -8,9 +8,9 @@ interface RoleBasedRedirectProps {
   fallbackPath?: string;
 }
 
-export default function RoleBasedRedirect({ 
-  children, 
-  fallbackPath = "/login" 
+export default function RoleBasedRedirect({
+  children,
+  fallbackPath = "/login"
 }: RoleBasedRedirectProps) {
   const { user, loading, error, redirectBasedOnRole } = useAuth();
 
@@ -73,7 +73,7 @@ export default function RoleBasedRedirect({
           Redirecionando...
         </h2>
         <p className="text-gray-600">
-          {user?.role === 'employee' 
+          {user?.role === 'employee'
             ? 'Direcionando para o sistema de ponto...'
             : 'Direcionando para o dashboard administrativo...'
           }
@@ -90,10 +90,10 @@ interface ProtectedRouteProps {
   fallbackPath?: string;
 }
 
-export function ProtectedRoute({ 
-  children, 
-  requiredRole, 
-  fallbackPath = "/login" 
+export function ProtectedRoute({
+  children,
+  requiredRole,
+  fallbackPath = "/login"
 }: ProtectedRouteProps) {
   const { user, loading, error } = useAuth();
 
@@ -159,9 +159,10 @@ export function ProtectedRoute({
             Acesso Restrito
           </h2>
           <p className="text-gray-600 mb-4">
-            Esta página é restrita para usuários do tipo "{requiredRole}".
-            Você está logado como "{user.role}".
+            {`Esta página é restrita para usuários do tipo "${requiredRole}". 
+            Você está logado como "${user.role}".`}
           </p>
+
           <button
             onClick={() => {
               if (user.role === 'employee') {

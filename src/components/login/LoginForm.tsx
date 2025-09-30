@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Lock } from 'lucide-react';
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/login/button";
 import { Card, CardContent } from "@/components/login/card";
@@ -11,9 +12,7 @@ import { Input } from "@/components/login/input";
 import { Label } from "@/components/login/label";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Cookies from "js-cookie"
-  ;
-
+import Cookies from "js-cookie";
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const [cpf, setCpf] = useState("");
@@ -21,39 +20,42 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
   const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
 
-    try {
-      const cpfLimpo = cpf.replace(/\D/g, "");
-      const email = `${cpfLimpo}@empresa.com`;
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+  try {
+    const cpfLimpo = cpf.replace(/\D/g, "");
+    const email = `${cpfLimpo}@empresa.com`;
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-      const token = await user.getIdToken();
+    const token = await user.getIdToken();
 
-      Cookies.set("firebaseToken", token, {
-        expires: 1,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-      });
+    Cookies.set("firebaseToken", token, {
+      expires: 1,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
 
-      Cookies.set("cpf", cpfLimpo, {
-        expires: 1,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-      });
+    Cookies.set("cpf", cpfLimpo, {
+      expires: 1,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
 
-      router.push("/ponto");
-    } catch (err: any) {
-      let msg = "Falha ao fazer login.";
+    router.push("/ponto");
+  } catch (err: unknown) {
+    let msg = "Falha ao fazer login.";
+
+    if (err instanceof FirebaseError) {
       if (err.code === "auth/user-not-found") msg = "Usuário não encontrado.";
       if (err.code === "auth/wrong-password") msg = "Senha incorreta.";
-      setError(msg);
     }
 
-  };
+    setError(msg);
+  }
+};
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>

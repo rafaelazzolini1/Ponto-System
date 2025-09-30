@@ -24,6 +24,13 @@ export interface Employee {
   email?: string;
 }
 
+export interface EmployeeData {
+  nome: string;
+  departamento?: string;
+  email?: string;
+  registrosPonto?: { [data: string]: RegistroPonto[] };
+}
+
 export interface DailyWorkData {
   data: string;
   registros: RegistroPonto[];
@@ -81,12 +88,14 @@ export async function getAllEmployees(): Promise<Employee[]> {
 /**
  * Busca dados de um funcionário específico
  */
-export async function getEmployeeData(cpf: string): Promise<any> {
+export async function getEmployeeData(cpf: string): Promise<EmployeeData> {
   try {
     const userQuery = query(collection(db, 'users'), where('__name__', '==', cpf));
     const userSnapshot = await getDocs(userQuery);
     if (userSnapshot.empty) throw new Error('Funcionário não encontrado');
-    return userSnapshot.docs[0].data();
+    const userData = userSnapshot.docs[0].data();
+    if (!userData.nome) throw new Error('Nome do funcionário não encontrado no documento');
+    return userData as EmployeeData;
   } catch (error) {
     console.error('Erro ao buscar dados do funcionário:', error);
     throw new Error('Erro ao carregar dados do funcionário');
@@ -165,7 +174,7 @@ export async function generateMonthlyReport(funcionarioCpf: string, mes: number,
 
     const userData = await getEmployeeData(funcionarioCpf);
     const registrosPonto = userData.registrosPonto || {};
-    
+
     const registrosPorDia = groupRegistrosByDay(registrosPonto, mes, ano);
     const dailyData: DailyWorkData[] = [];
     let totalHoras = 0;
@@ -201,7 +210,7 @@ export async function generateMonthlyReport(funcionarioCpf: string, mes: number,
 
     const diasComHoras = dailyData.filter(d => d.horasTrabalhadas > 0);
     const horasPorDia = diasComHoras.map(d => d.horasTrabalhadas);
-    
+
     const resumo = {
       mediaDiariaHoras: diasComHoras.length > 0 ? totalHoras / diasComHoras.length : 0,
       maiorDiaHoras: horasPorDia.length > 0 ? Math.max(...horasPorDia) : 0,
