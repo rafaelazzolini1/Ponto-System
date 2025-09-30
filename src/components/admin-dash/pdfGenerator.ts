@@ -8,6 +8,12 @@ export interface PDFReportOptions {
   reportData: MonthlyReportData;
 }
 
+interface AutoTableDoc extends jsPDF {
+  lastAutoTable: {
+    finalY: number;
+  };
+}
+
 /**
  * Paleta de cores neutra e corporativa
  */
@@ -43,7 +49,7 @@ export function generatePDFReport(options: PDFReportOptions): void {
 
   // Criar novo documento PDF
   const doc = new jsPDF();
-  
+
   // Configurações
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
@@ -63,12 +69,12 @@ export function generatePDFReport(options: PDFReportOptions): void {
   // CABEÇALHO DA EMPRESA
   doc.setFillColor(...hexToRgb(colors.headerBg));
   doc.rect(0, 0, pageWidth, 40, 'F');
-  
+
   doc.setTextColor(...hexToRgb(colors.white));
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
   doc.text(nomeEmpresa, pageWidth / 2, 25, { align: 'center' });
-  
+
   currentY = 50;
 
   // TÍTULO DO RELATÓRIO
@@ -76,23 +82,23 @@ export function generatePDFReport(options: PDFReportOptions): void {
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
   doc.text('Relatório Mensal', pageWidth / 2, currentY, { align: 'center' });
-  
+
   currentY += 10;
 
   // INFORMAÇÕES DO FUNCIONÁRIO
   doc.setFillColor(...hexToRgb(colors.tableAlternateRow));
   doc.rect(margin, currentY, pageWidth - 2 * margin, 35, 'F');
-  
+
   doc.setTextColor(...hexToRgb(colors.textPrimary));
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  
+
   const infoY = currentY + 10;
   doc.text(`Funcionário: ${funcionario.nome}`, margin + 10, infoY);
   doc.text(`CPF: ${funcionario.cpf}`, margin + 10, infoY + 8);
   doc.text(`Período: ${getMonthName(mes)} de ${ano}`, pageWidth - margin - 10, infoY, { align: 'right' });
   doc.text(`Data de emissão: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - margin - 10, infoY + 8, { align: 'right' });
-  
+
   currentY += 45;
 
   // RESUMO MENSAL (usando totais cappados)
@@ -100,7 +106,7 @@ export function generatePDFReport(options: PDFReportOptions): void {
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...hexToRgb(colors.accent));
   doc.text('RESUMO MENSAL', margin, currentY);
-  
+
   currentY += 8;
 
   // Tabela de resumo - usando totais cappados
@@ -133,7 +139,7 @@ export function generatePDFReport(options: PDFReportOptions): void {
     margin: { left: margin, right: margin }
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 15;
+  currentY = doc.lastAutoTable.finalY + 15;
 
   // DETALHAMENTO DIÁRIO
   checkPageBreak(30);
@@ -151,17 +157,17 @@ export function generatePDFReport(options: PDFReportOptions): void {
     const horasTrabalhadasDisplay = dia.horasTrabalhadas; // cappada
     const horasExtrasDisplay = dia.horasExtras; // máximo 1h
     const horasTrabalhadasOriginal = calculateDailyHours(dia.registros);
-    
-    let horasTrabalhadasStr = formatHours(horasTrabalhadasDisplay);
-    let horasExtrasStr = horasExtrasDisplay > 0 ? formatHours(horasExtrasDisplay) : '-';
+
+    const horasTrabalhadasStr = formatHours(horasTrabalhadasDisplay);
+    const horasExtrasStr = horasExtrasDisplay > 0 ? formatHours(horasExtrasDisplay) : '-';
     let horariosDisplay = dia.registros.map(r => {
-      const hora = r.timestamp.toDate().toLocaleTimeString('pt-BR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      const hora = r.timestamp.toDate().toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
       });
       return `${r.tipo}: ${hora}`;
     }).join(' | ');
-    
+
     // Se horas originais excedem 9h48min, ajustar o horário da última saída para display
     if (horasTrabalhadasOriginal > JORNADA_NORMAL_HORAS + 1 && dia.registros.length >= 2) {
       const lastRegistro = dia.registros[dia.registros.length - 1];
@@ -174,14 +180,14 @@ export function generatePDFReport(options: PDFReportOptions): void {
             prevMinutos += (saida.timestamp.toDate().getTime() - entrada.timestamp.toDate().getTime()) / (1000 * 60);
           }
         }
-        
+
         const lastEntry = dia.registros[dia.registros.length - 2];
         const remainingMin = (JORNADA_NORMAL_HORAS + 1) * 60 - prevMinutos;
-        
+
         if (remainingMin > 0 && lastEntry) {
           const adjustedExitTime = new Date(lastEntry.timestamp.toDate().getTime() + remainingMin * 60 * 1000);
           const adjustedHora = adjustedExitTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-          
+
           const parts = horariosDisplay.split(' | ');
           if (parts.length > 0) {
             const lastPartIndex = parts.length - 1;
@@ -193,9 +199,9 @@ export function generatePDFReport(options: PDFReportOptions): void {
         }
       }
     }
-    
+
     const statusStr = dia.completo ? 'Completo' : 'Incompleto';
-    
+
     return [
       dataFormatada,
       horariosDisplay || '-',
@@ -238,64 +244,64 @@ export function generatePDFReport(options: PDFReportOptions): void {
     }
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 30;
+  currentY = doc.lastAutoTable.finalY + 30;
 
   // OBSERVAÇÕES
   checkPageBreak(40);
-  
+
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...hexToRgb(colors.accent));
   doc.text('OBSERVAÇÕES:', margin, currentY);
-  
+
   currentY += 10;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...hexToRgb(colors.textPrimary));
   doc.text('• Jornada normal: 8h 48min por dia', margin + 5, currentY);
   doc.text('• Horas extras: tempo trabalhado acima da jornada normal (limitado a 2h/dia)', margin + 5, currentY + 8);
   doc.text('• Dias completos: dias com pelo menos uma entrada e uma saída', margin + 5, currentY + 16);
-  
+
   currentY += 35;
 
   // CAMPO DE ASSINATURA
   checkPageBreak(60);
-  
+
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...hexToRgb(colors.accent));
   doc.text('DECLARAÇÃO E ASSINATURA', margin, currentY);
-  
+
   currentY += 15;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...hexToRgb(colors.textPrimary));
-  
+
   const declaracaoTexto = [
     'Declaro que conferi todos os horários registrados neste relatório e que',
     'os mesmos correspondem fielmente aos dias e horários efetivamente trabalhados',
     'no período especificado.'
   ];
-  
+
   declaracaoTexto.forEach((linha, index) => {
     doc.text(linha, margin, currentY + (index * 6));
   });
-  
+
   currentY += 30;
-  
+
   // Linha para assinatura
   doc.setLineWidth(0.5);
   doc.setDrawColor(...hexToRgb(colors.line));
   doc.line(margin, currentY + 20, pageWidth - margin, currentY + 20);
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...hexToRgb(colors.textPrimary));
   doc.text(`${funcionario.nome}`, pageWidth / 2, currentY + 30, { align: 'center' });
   doc.text('Assinatura do Funcionário', pageWidth / 2, currentY + 38, { align: 'center' });
-  
+
   // Data da assinatura
   doc.text(`Data: ___/___/______`, pageWidth - margin - 50, currentY + 30);
 
@@ -321,7 +327,7 @@ export function generateConsolidatedPDFReport(
   reports: MonthlyReportData[]
 ): void {
   const doc = new jsPDF();
-  
+
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   const margin = 20;
@@ -330,12 +336,12 @@ export function generateConsolidatedPDFReport(
   // CABEÇALHO DA EMPRESA
   doc.setFillColor(...hexToRgb(colors.headerBg));
   doc.rect(0, 0, pageWidth, 40, 'F');
-  
+
   doc.setTextColor(...hexToRgb(colors.white));
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
   doc.text(nomeEmpresa, pageWidth / 2, 25, { align: 'center' });
-  
+
   currentY = 50;
 
   // TÍTULO DO RELATÓRIO
@@ -343,14 +349,14 @@ export function generateConsolidatedPDFReport(
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
   doc.text('RELATÓRIO CONSOLIDADO MENSAL', pageWidth / 2, currentY, { align: 'center' });
-  
+
   currentY += 10;
-  
+
   doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...hexToRgb(colors.textPrimary));
   doc.text(`${getMonthName(mes)} de ${ano}`, pageWidth / 2, currentY, { align: 'center' });
-  
+
   currentY += 25;
 
   // RESUMO GERAL (usando totais cappados dos reports)
@@ -360,17 +366,17 @@ export function generateConsolidatedPDFReport(
 
   doc.setFillColor(...hexToRgb(colors.tableAlternateRow));
   doc.rect(margin, currentY, pageWidth - 2 * margin, 25, 'F');
-  
+
   doc.setTextColor(...hexToRgb(colors.textPrimary));
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  
+
   const resumoY = currentY + 8;
   doc.text(`Total de Funcionários: ${reports.length}`, margin + 10, resumoY);
   doc.text(`Total de Horas: ${formatHours(totalHorasGeral)}`, margin + 10, resumoY + 8);
   doc.text(`Total de Horas Extras: ${formatHours(totalHorasExtrasGeral)}`, pageWidth - margin - 10, resumoY, { align: 'right' });
   doc.text(`Média de Dias/Funcionário: ${(totalDiasGeral / reports.length).toFixed(1)}`, pageWidth - margin - 10, resumoY + 8, { align: 'right' });
-  
+
   currentY += 35;
 
   // TABELA CONSOLIDADA (usando totais cappados)
@@ -378,7 +384,7 @@ export function generateConsolidatedPDFReport(
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...hexToRgb(colors.accent));
   doc.text('DETALHAMENTO POR FUNCIONÁRIO', margin, currentY);
-  
+
   currentY += 15;
 
   const consolidatedData = reports.map(report => [

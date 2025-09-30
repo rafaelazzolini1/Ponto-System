@@ -8,6 +8,7 @@ import {
   MonthlyReportData,
   getMonthName,
   isValidMonthYear,
+  ReportFilters, // Importar a interface
 } from '../admin-dash/reportUtils';
 import {
   XCircleIcon,
@@ -16,17 +17,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { X } from 'lucide-react';
 
+
+
 interface ReportGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   onGenerateReport: (reportData: MonthlyReportData, filters: ReportFilters) => void;
-}
-
-interface ReportFilters {
-  funcionarioCpf: string;
-  mes: number;
-  ano: number;
-  nomeEmpresa: string;
 }
 
 export default function ReportGeneratorModal({
@@ -39,12 +35,13 @@ export default function ReportGeneratorModal({
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
 
-  const [filters, setFilters] = useState<ReportFilters>({
-    funcionarioCpf: '',
-    mes: new Date().getMonth() + 1,
-    ano: new Date().getFullYear(),
-    nomeEmpresa: 'MR Azzolini Transportes e Serviços',
-  });
+const [filters, setFilters] = useState<ReportFilters>({
+  funcionarioCpf: '',
+  mes: new Date().getMonth() + 1,
+  ano: new Date().getFullYear(),
+  nomeEmpresa: 'MR Azzolini Transportes e Serviços',
+  assinaturaFuncionario: '', // Adicionar propriedade
+});
 
   useEffect(() => {
     if (isOpen) {
@@ -129,12 +126,13 @@ export default function ReportGeneratorModal({
     validatePeriod(filters.mes, newAno);
   };
 
-  const handleClose = () => {
+const handleClose = () => {
     setFilters({
       funcionarioCpf: '',
       mes: new Date().getMonth() + 1,
       ano: new Date().getFullYear(),
       nomeEmpresa: 'MR Azzolini Transportes e Serviços',
+      assinaturaFuncionario: '',
     });
     setError(null);
     onClose();

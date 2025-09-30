@@ -17,7 +17,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { RegistroPonto } from '../../components/ponto/usePonto';
 import ReportGeneratorModal from '../../components/admin-dash/ReportGeneratorModal';
 import { generatePDFReport, PDFReportOptions } from '../../components/admin-dash/pdfGenerator';
-import { MonthlyReportData } from '../../components/admin-dash/reportUtils';
+import { MonthlyReportData, ReportFilters } from '../../components/admin-dash/reportUtils';
 import {
   BarChart,
   Bar,
@@ -30,7 +30,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { AlarmClockCheckIcon, ChartBarIncreasing } from 'lucide-react';
+import { AlarmClockCheckIcon } from 'lucide-react';
 
 interface EmployeeData {
   cpf: string;
@@ -145,8 +145,8 @@ export default function AdminDashboard() {
         const userData = doc.data();
         const registrosPonto = userData.registrosPonto || {};
 
-        let effectiveDataInicio = filters.dataInicio;
-        let effectiveDataFim = filters.dataFim || filters.dataInicio;
+        const effectiveDataInicio = filters.dataInicio;
+        const effectiveDataFim = filters.dataFim || filters.dataInicio;
 
         const registrosFiltrados: RegistroPonto[] = [];
         const dataInicioDt = DateTime.fromISO(effectiveDataInicio, { zone: 'America/Sao_Paulo' }).startOf('day');
@@ -384,7 +384,7 @@ export default function AdminDashboard() {
     return [`${horas}h ${minutos}m`, 'Horas Trabalhadas'];
   };
 
-  const handleGenerateReport = (reportData: MonthlyReportData, reportFilters: any) => {
+  const handleGenerateReport = (reportData: MonthlyReportData, reportFilters: ReportFilters) => {
     try {
       const pdfOptions: PDFReportOptions = {
         nomeEmpresa: reportFilters.nomeEmpresa,

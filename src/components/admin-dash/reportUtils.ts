@@ -9,6 +9,14 @@ export interface RegistroPonto {
   data: string;
 }
 
+export interface ReportFilters {
+  nomeEmpresa: string;
+  assinaturaFuncionario: string;
+  funcionarioCpf: string;
+  mes: number;
+  ano: number;
+}
+
 export interface Employee {
   cpf: string;
   nome: string;
