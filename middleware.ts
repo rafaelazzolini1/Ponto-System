@@ -1,17 +1,5 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getAuth } from "firebase-admin/auth";
-import { initializeApp, getApps, cert } from "firebase-admin/app";
-
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-}
 
 export async function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
@@ -27,15 +15,22 @@ export async function middleware(req: NextRequest) {
   }
 
   try {
-    await getAuth().verifyIdToken(token);
-    console.log("✅ Token válido no middleware");
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/verify-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
 
-    if (url.pathname === "/login") {
-      url.pathname = "/ponto";
-      return NextResponse.redirect(url);
+    if (response.ok) {
+      console.log("✅ Token válido no middleware");
+      if (url.pathname === "/login") {
+        url.pathname = "/ponto";
+        return NextResponse.redirect(url);
+      }
+      return NextResponse.next();
+    } else {
+      throw new Error("Token inválido");
     }
-
-    return NextResponse.next();
   } catch (error) {
     console.error("❌ Erro ao validar token:", error);
     url.pathname = "/login";
@@ -46,4 +41,3 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: ["/", "/login", "/ponto", "/ponto/:path*"],
 };
-
