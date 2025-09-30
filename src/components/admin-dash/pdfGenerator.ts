@@ -1,368 +1,441 @@
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Timestamp } from 'firebase/firestore';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { MonthlyReportData, formatHours, formatDate, getMonthName, calculateDailyHours, JORNADA_NORMAL_HORAS, JORNADA_NORMAL_MINUTOS, MAX_WORKED_MINUTOS, MAX_WORKED_HORAS } from '../admin-dash/reportUtils';
 
-// Interfaces
-export interface RegistroPonto {
-  tipo: 'entrada' | 'saida';
-  timestamp: Timestamp;
-  data: string;
+export interface PDFReportOptions {
+  nomeEmpresa: string;
+  assinaturaFuncionario: string;
+  reportData: MonthlyReportData;
 }
 
-export interface Employee {
-  cpf: string;
-  nome: string;
-  departamento?: string;
-  email?: string;
+/**
+ * Paleta de cores neutra e corporativa
+ */
+const colors = {
+  headerBg: '#2D3748', // Cinza escuro
+  textPrimary: '#1A202C', // Quase preto
+  textSecondary: '#4A5568', // Cinza médio
+  accent: '#2B6CB0', // Azul escuro corporativo
+  tableHeaderBg: '#4A5568', // Cinza médio
+  tableAlternateRow: '#F7FAFC', // Cinza claro
+  white: '#FFFFFF',
+  line: '#E2E8F0' // Cinza claro para linhas
+};
+
+/**
+ * Função auxiliar para converter cor hexadecimal para RGB
+ */
+function hexToRgb(hex: string): [number, number, number] {
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return [r, g, b];
 }
 
-export interface DailyWorkData {
-  data: string;
-  registros: RegistroPonto[];
-  horasTrabalhadas: number;
-  horasExtras: number;
-  completo: boolean;
-}
+/**
+ * Gera um PDF com o relatório mensal de ponto do funcionário
+ * ATUALIZADA para compatibilidade com a nova estrutura de dados e ajuste de horários cappados
+ */
+export function generatePDFReport(options: PDFReportOptions): void {
+  const { nomeEmpresa, assinaturaFuncionario, reportData } = options;
+  const { funcionario, mes, ano, totalHoras, totalHorasExtras, diasTrabalhados, registrosPorDia } = reportData;
 
-export interface MonthlyReportData {
-  funcionario: Employee;
-  mes: number;
-  ano: number;
-  totalHoras: number;
-  totalHorasExtras: number;
-  diasTrabalhados: number;
-  diasComRegistro: number;
-  registrosPorDia: DailyWorkData[];
-  resumo: {
-    mediaDiariaHoras: number;
-    maiorDiaHoras: number;
-    menorDiaHoras: number;
-    diasComHorasExtras: number;
+  // Criar novo documento PDF
+  const doc = new jsPDF();
+  
+  // Configurações
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  const margin = 20;
+  let currentY = margin;
+
+  // Função auxiliar para adicionar nova página se necessário
+  const checkPageBreak = (neededHeight: number) => {
+    if (currentY + neededHeight > pageHeight - margin) {
+      doc.addPage();
+      currentY = margin;
+      return true;
+    }
+    return false;
   };
-}
 
-// Constantes (atualizadas para max extras 2h, max worked 12h48)
-export const JORNADA_NORMAL_MINUTOS = 8 * 60 + 48; // 528 min (8h48)
-export const JORNADA_NORMAL_HORAS = JORNADA_NORMAL_MINUTOS / 60; // 8.8
-export const MAX_OVERTIME_HORAS = 2;
-export const OVERTIME_START_MINUTOS = JORNADA_NORMAL_MINUTOS + 120; // 528 + 120 = 648 min (10h48)
-export const OVERTIME_START_HORAS = OVERTIME_START_MINUTOS / 60; // 10.8
-export const MAX_WORKED_MINUTOS = OVERTIME_START_MINUTOS + (MAX_OVERTIME_HORAS * 60); // 648 + 120 = 768 min (12h48)
-export const MAX_WORKED_HORAS = MAX_WORKED_MINUTOS / 60; // 12.8
-export const NORMAL_END_TIME = '15:48';
+  // CABEÇALHO DA EMPRESA
+  doc.setFillColor(...hexToRgb(colors.headerBg));
+  doc.rect(0, 0, pageWidth, 40, 'F');
+  
+  doc.setTextColor(...hexToRgb(colors.white));
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(nomeEmpresa, pageWidth / 2, 25, { align: 'center' });
+  
+  currentY = 50;
 
-/**
- * Busca todos os funcionários
- */
-export async function getAllEmployees(): Promise<Employee[]> {
-  try {
-    const usersQuery = query(collection(db, 'users'), where('role', '==', 'employee'));
-    const usersSnapshot = await getDocs(usersQuery);
-    const employees: Employee[] = [];
-    usersSnapshot.forEach((doc) => {
-      const userData = doc.data();
-      employees.push({ cpf: doc.id, nome: userData.nome, departamento: userData.departamento, email: userData.email });
-    });
-    return employees.sort((a, b) => a.nome.localeCompare(b.nome));
-  } catch (error) {
-    console.error('Erro ao buscar funcionários:', error);
-    throw new Error('Erro ao carregar lista de funcionários');
-  }
-}
+  // TÍTULO DO RELATÓRIO
+  doc.setTextColor(...hexToRgb(colors.accent));
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Relatório Mensal', pageWidth / 2, currentY, { align: 'center' });
+  
+  currentY += 10;
 
-/**
- * Busca dados de um funcionário específico
- */
-export async function getEmployeeData(cpf: string): Promise<any> {
-  try {
-    const userQuery = query(collection(db, 'users'), where('__name__', '==', cpf));
-    const userSnapshot = await getDocs(userQuery);
-    if (userSnapshot.empty) throw new Error('Funcionário não encontrado');
-    return userSnapshot.docs[0].data();
-  } catch (error) {
-    console.error('Erro ao buscar dados do funcionário:', error);
-    throw new Error('Erro ao carregar dados do funcionário');
-  }
-}
+  // INFORMAÇÕES DO FUNCIONÁRIO
+  doc.setFillColor(...hexToRgb(colors.tableAlternateRow));
+  doc.rect(margin, currentY, pageWidth - 2 * margin, 35, 'F');
+  
+  doc.setTextColor(...hexToRgb(colors.textPrimary));
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  
+  const infoY = currentY + 10;
+  doc.text(`Funcionário: ${funcionario.nome}`, margin + 10, infoY);
+  doc.text(`CPF: ${funcionario.cpf}`, margin + 10, infoY + 8);
+  doc.text(`Período: ${getMonthName(mes)} de ${ano}`, pageWidth - margin - 10, infoY, { align: 'right' });
+  doc.text(`Data de emissão: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - margin - 10, infoY + 8, { align: 'right' });
+  
+  currentY += 45;
 
-/**
- * Calcula as horas trabalhadas em um dia
- */
-export function calculateDailyHours(registros: RegistroPonto[]): number {
-  if (registros.length < 2) return 0;
-  let totalMinutos = 0;
-  for (let i = 0; i < registros.length; i += 2) {
-    const entrada = registros[i];
-    const saida = registros[i + 1];
-    if (entrada && saida && entrada.tipo === 'entrada' && saida.tipo === 'saida') {
-      const diferenca = (saida.timestamp.toDate().getTime() - entrada.timestamp.toDate().getTime()) / (1000 * 60);
-      totalMinutos += diferenca;
-    }
-  }
-  return totalMinutos / 60;
-}
+  // RESUMO MENSAL (usando totais cappados)
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...hexToRgb(colors.accent));
+  doc.text('RESUMO MENSAL', margin, currentY);
+  
+  currentY += 8;
 
-/**
- * Calcula as horas extras de um dia (atualizado para dinâmico após 10h48, max 2h)
- */
-export function calculateDailyOvertime(horasTrabalhadas: number): number {
-  const extras = Math.max(0, horasTrabalhadas - OVERTIME_START_HORAS);
-  return Math.min(extras, MAX_OVERTIME_HORAS);
-}
+  // Tabela de resumo - usando totais cappados
+  const resumoData = [
+    ['Total de Horas Trabalhadas', formatHours(totalHoras)],
+    ['Dias Trabalhados', diasTrabalhados.toString()],
+    ['Total de Horas Extras', formatHours(totalHorasExtras)],
+    ['Média Diária', formatHours(diasTrabalhados > 0 ? totalHoras / diasTrabalhados : 0)]
+  ];
 
-/**
- * Verifica se um dia está completo
- */
-export function isDayComplete(registros: RegistroPonto[]): boolean {
-  if (registros.length < 2) return false;
-  return registros.some(r => r.tipo === 'entrada') && registros.some(r => r.tipo === 'saida');
-}
-
-/**
- * Filtra registros por mês e ano
- */
-export function filterRegistrosByMonth(registrosPonto: { [data: string]: RegistroPonto[] }, mes: number, ano: number): RegistroPonto[] {
-  const registrosFiltrados: RegistroPonto[] = [];
-  Object.keys(registrosPonto).forEach((dataKey) => {
-    const [year, month, day] = dataKey.split('-').map(Number);
-    if (month === mes && year === ano) {
-      registrosFiltrados.push(...registrosPonto[dataKey]);
-    }
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Descrição', 'Valor']],
+    body: resumoData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: hexToRgb(colors.tableHeaderBg),
+      textColor: hexToRgb(colors.white),
+      fontSize: 11,
+      fontStyle: 'bold'
+    },
+    bodyStyles: {
+      fontSize: 10,
+      textColor: hexToRgb(colors.textPrimary)
+    },
+    columnStyles: {
+      0: { cellWidth: 120 },
+      1: { cellWidth: 60, halign: 'center' }
+    },
+    margin: { left: margin, right: margin }
   });
-  return registrosFiltrados.sort((a, b) => a.timestamp.toDate().getTime() - b.timestamp.toDate().getTime());
-}
 
-/**
- * Agrupa registros por dia
- */
-export function groupRegistrosByDay(registrosPonto: { [data: string]: RegistroPonto[] }, mes: number, ano: number): Map<string, RegistroPonto[]> {
-  const registrosPorDia = new Map<string, RegistroPonto[]>();
-  Object.keys(registrosPonto).forEach((dataKey) => {
-    const [year, month, day] = dataKey.split('-').map(Number);
-    if (month === mes && year === ano) {
-      const registrosOrdenados = [...registrosPonto[dataKey]].sort((a, b) => a.timestamp.toDate().getTime() - b.timestamp.toDate().getTime());
-      registrosPorDia.set(dataKey, registrosOrdenados);
-    }
-  });
-  return registrosPorDia;
-}
+  currentY = (doc as any).lastAutoTable.finalY + 15;
 
-/**
- * Gera dados completos do relatório mensal (atualizado para novo capping dinâmico)
- */
-export async function generateMonthlyReport(funcionarioCpf: string, mes: number, ano: number): Promise<MonthlyReportData> {
-  try {
-    const employees = await getAllEmployees();
-    const funcionario = employees.find(emp => emp.cpf === funcionarioCpf);
-    if (!funcionario) throw new Error('Funcionário não encontrado');
+  // DETALHAMENTO DIÁRIO
+  checkPageBreak(30);
 
-    const userData = await getEmployeeData(funcionarioCpf);
-    const registrosPonto = userData.registrosPonto || {};
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...hexToRgb(colors.accent));
+  doc.text('DETALHAMENTO DIÁRIO', margin, currentY);
+
+  currentY += 15;
+
+  // Preparar dados da tabela diária (com ajuste de horário se capping aplicado)
+  const dailyTableData = registrosPorDia.map(dia => {
+    const dataFormatada = formatDate(dia.data);
+    const horasTrabalhadasDisplay = dia.horasTrabalhadas; // cappada
+    const horasExtrasDisplay = dia.horasExtras; // máximo 1h
+    const horasTrabalhadasOriginal = calculateDailyHours(dia.registros);
     
-    const registrosPorDia = groupRegistrosByDay(registrosPonto, mes, ano);
-    const dailyData: DailyWorkData[] = [];
-    let totalHoras = 0;
-    let totalHorasExtras = 0;
-    let diasTrabalhados = 0;
-
-    registrosPorDia.forEach((registros, data) => {
-      const horasTrabalhadasOriginal = calculateDailyHours(registros);
-      const horasExtrasOriginal = calculateDailyOvertime(horasTrabalhadasOriginal);
-      const horasTrabalhadasCappada = Math.min(horasTrabalhadasOriginal, MAX_WORKED_HORAS);
-      const horasExtrasCappada = Math.min(horasExtrasOriginal, MAX_OVERTIME_HORAS);
-      const completo = isDayComplete(registros);
-
-      if (completo) diasTrabalhados++;
-      totalHoras += horasTrabalhadasCappada;
-      totalHorasExtras += horasExtrasCappada;
-
-      dailyData.push({
-        data,
-        registros,
-        horasTrabalhadas: horasTrabalhadasCappada,
-        horasExtras: horasExtrasCappada,
-        completo
+    let horasTrabalhadasStr = formatHours(horasTrabalhadasDisplay);
+    let horasExtrasStr = horasExtrasDisplay > 0 ? formatHours(horasExtrasDisplay) : '-';
+    let horariosDisplay = dia.registros.map(r => {
+      const hora = r.timestamp.toDate().toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
       });
-    });
-
-    // Ordenação corrigida para evitar deslocamento de fuso horário
-    dailyData.sort((a, b) => {
-      const [yearA, monthA, dayA] = a.data.split('-').map(Number);
-      const [yearB, monthB, dayB] = b.data.split('-').map(Number);
-      return (yearA - yearB) || (monthA - monthB) || (dayA - dayB);
-    });
-
-    const diasComHoras = dailyData.filter(d => d.horasTrabalhadas > 0);
-    const horasPorDia = diasComHoras.map(d => d.horasTrabalhadas);
+      return `${r.tipo}: ${hora}`;
+    }).join(' | ');
     
-    const resumo = {
-      mediaDiariaHoras: diasComHoras.length > 0 ? totalHoras / diasComHoras.length : 0,
-      maiorDiaHoras: horasPorDia.length > 0 ? Math.max(...horasPorDia) : 0,
-      menorDiaHoras: horasPorDia.length > 0 ? Math.min(...horasPorDia) : 0,
-      diasComHorasExtras: dailyData.filter(d => d.horasExtras > 0).length
-    };
-
-    return {
-      funcionario,
-      mes,
-      ano,
-      totalHoras,
-      totalHorasExtras,
-      diasTrabalhados,
-      diasComRegistro: dailyData.length,
-      registrosPorDia: dailyData,
-      resumo
-    };
-  } catch (error) {
-    console.error('Erro ao gerar relatório mensal:', error);
-    throw new Error('Erro ao gerar dados do relatório');
-  }
-}
-
-/**
- * Formata horas para exibição
- */
-export function formatHours(horas: number): string {
-  if (horas === 0) return "0h 0m";
-  const horasInteiras = Math.floor(horas);
-  const minutos = Math.round((horas - horasInteiras) * 60);
-  return `${horasInteiras}h ${minutos}m`;
-}
-
-/**
- * Formata data para exibição brasileira
- */
-export function formatDate(dateString: string): string {
-  const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, day); // month é 0-based
-  return date.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'America/Sao_Paulo'
-  });
-}
-
-/**
- * Formata data para exibição com dia da semana
- */
-export function formatDateWithWeekday(dateString: string): string {
-  const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString('pt-BR', {
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'America/Sao_Paulo'
-  });
-}
-
-/**
- * Obtém nome do mês
- */
-export function getMonthName(mes: number): string {
-  const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  return meses[mes - 1] || 'Mês inválido';
-}
-
-/**
- * Valida se um mês/ano é válido
- */
-export function isValidMonthYear(mes: number, ano: number): boolean {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  if (ano > currentYear || (ano === currentYear && mes > currentMonth)) return false;
-  if (ano < 2020) return false;
-  if (mes < 1 || mes > 12) return false;
-  return true;
-}
-
-/**
- * Calcula estatísticas gerais
- */
-export interface GeneralStats {
-  totalFuncionarios: number;
-  totalHorasTrabalhadasMes: number;
-  totalHorasExtrasMes: number;
-  mediaDiasTrabalhadosPorFuncionario: number;
-  funcionarioComMaisHoras: { nome: string; horas: number } | null;
-  funcionarioComMaisExtras: { nome: string; horas: number } | null;
-}
-
-export async function calculateGeneralStats(mes: number, ano: number): Promise<GeneralStats> {
-  try {
-    const employees = await getAllEmployees();
-    const reports: MonthlyReportData[] = [];
-    for (const employee of employees) {
-      try {
-        const report = await generateMonthlyReport(employee.cpf, mes, ano);
-        reports.push(report);
-      } catch (error) {
-        console.warn(`Erro ao gerar relatório para ${employee.nome}:`, error);
+    // Se horas originais excedem 9h48min, ajustar o horário da última saída para display
+    if (horasTrabalhadasOriginal > JORNADA_NORMAL_HORAS + 1 && dia.registros.length >= 2) {
+      const lastRegistro = dia.registros[dia.registros.length - 1];
+      if (lastRegistro.tipo === 'saida') {
+        let prevMinutos = 0;
+        for (let i = 0; i < dia.registros.length - 2; i += 2) {
+          const entrada = dia.registros[i];
+          const saida = dia.registros[i + 1];
+          if (entrada && saida && entrada.tipo === 'entrada' && saida.tipo === 'saida') {
+            prevMinutos += (saida.timestamp.toDate().getTime() - entrada.timestamp.toDate().getTime()) / (1000 * 60);
+          }
+        }
+        
+        const lastEntry = dia.registros[dia.registros.length - 2];
+        const remainingMin = (JORNADA_NORMAL_HORAS + 1) * 60 - prevMinutos;
+        
+        if (remainingMin > 0 && lastEntry) {
+          const adjustedExitTime = new Date(lastEntry.timestamp.toDate().getTime() + remainingMin * 60 * 1000);
+          const adjustedHora = adjustedExitTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          
+          const parts = horariosDisplay.split(' | ');
+          if (parts.length > 0) {
+            const lastPartIndex = parts.length - 1;
+            if (parts[lastPartIndex].startsWith('saida:')) {
+              parts[lastPartIndex] = `saida: ${adjustedHora}`;
+              horariosDisplay = parts.join(' | ');
+            }
+          }
+        }
       }
     }
-    const totalHorasTrabalhadasMes = reports.reduce((acc, r) => acc + r.totalHoras, 0);
-    const totalHorasExtrasMes = reports.reduce((acc, r) => acc + r.totalHorasExtras, 0);
-    const totalDiasTrabalhados = reports.reduce((acc, r) => acc + r.diasTrabalhados, 0);
-    const funcionarioComMaisHoras = reports.length > 0 ? reports.reduce((max, r) => r.totalHoras > max.totalHoras ? r : max) : null;
-    const funcionarioComMaisExtras = reports.length > 0 ? reports.reduce((max, r) => r.totalHorasExtras > max.totalHorasExtras ? r : max) : null;
-    return {
-      totalFuncionarios: reports.length,
-      totalHorasTrabalhadasMes,
-      totalHorasExtrasMes,
-      mediaDiasTrabalhadosPorFuncionario: reports.length > 0 ? totalDiasTrabalhados / reports.length : 0,
-      funcionarioComMaisHoras: funcionarioComMaisHoras ? { nome: funcionarioComMaisHoras.funcionario.nome, horas: funcionarioComMaisHoras.totalHoras } : null,
-      funcionarioComMaisExtras: funcionarioComMaisExtras && funcionarioComMaisExtras.totalHorasExtras > 0 ? { nome: funcionarioComMaisExtras.funcionario.nome, horas: funcionarioComMaisExtras.totalHorasExtras } : null
-    };
-  } catch (error) {
-    console.error('Erro ao calcular estatísticas gerais:', error);
-    throw new Error('Erro ao calcular estatísticas gerais');
-  }
-}
+    
+    const statusStr = dia.completo ? 'Completo' : 'Incompleto';
+    
+    return [
+      dataFormatada,
+      horariosDisplay || '-',
+      horasTrabalhadasStr,
+      horasExtrasStr,
+      statusStr
+    ];
+  });
 
-/**
- * Extrai registros de um período
- */
-export function extractRegistrosFromPeriod(registrosPonto: { [data: string]: RegistroPonto[] }, dataInicio: string, dataFim: string): RegistroPonto[] {
-  const registrosFiltrados: RegistroPonto[] = [];
-  const [yearI, monthI, dayI] = dataInicio.split('-').map(Number);
-  const [yearF, monthF, dayF] = dataFim.split('-').map(Number);
-  const inicio = new Date(yearI, monthI - 1, dayI);
-  const fim = new Date(yearF, monthF - 1, dayF);
-  Object.keys(registrosPonto).forEach((dataKey) => {
-    const [year, month, day] = dataKey.split('-').map(Number);
-    const dataRegistro = new Date(year, month - 1, day);
-    if (dataRegistro >= inicio && dataRegistro <= fim) {
-      registrosFiltrados.push(...registrosPonto[dataKey]);
+  // Verificar se precisa quebrar página para a tabela
+  const estimatedTableHeight = (dailyTableData.length + 1) * 8 + 20;
+  checkPageBreak(estimatedTableHeight);
+
+  // FIXED: Using autoTable function directly
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Data', 'Horários', 'Horas Trabalhadas', 'Horas Extras', 'Status']],
+    body: dailyTableData,
+    theme: 'striped',
+    headStyles: {
+      fillColor: hexToRgb(colors.tableHeaderBg),
+      textColor: hexToRgb(colors.white),
+      fontSize: 10,
+      fontStyle: 'bold'
+    },
+    bodyStyles: {
+      fontSize: 9,
+      textColor: hexToRgb(colors.textPrimary)
+    },
+    columnStyles: {
+      0: { cellWidth: 20 },
+      1: { cellWidth: 90 },
+      2: { cellWidth: 25, halign: 'center' },
+      3: { cellWidth: 20, halign: 'center' },
+      4: { cellWidth: 20, halign: 'center' }
+    },
+    margin: { left: margin, right: margin },
+    alternateRowStyles: {
+      fillColor: hexToRgb(colors.tableAlternateRow)
     }
   });
-  return registrosFiltrados.sort((a, b) => a.timestamp.toDate().getTime() - b.timestamp.toDate().getTime());
+
+  currentY = (doc as any).lastAutoTable.finalY + 30;
+
+  // OBSERVAÇÕES
+  checkPageBreak(40);
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...hexToRgb(colors.accent));
+  doc.text('OBSERVAÇÕES:', margin, currentY);
+  
+  currentY += 10;
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...hexToRgb(colors.textPrimary));
+  doc.text('• Jornada normal: 8h 48min por dia', margin + 5, currentY);
+  doc.text('• Horas extras: tempo trabalhado acima da jornada normal (limitado a 2h/dia)', margin + 5, currentY + 8);
+  doc.text('• Dias completos: dias com pelo menos uma entrada e uma saída', margin + 5, currentY + 16);
+  
+  currentY += 35;
+
+  // CAMPO DE ASSINATURA
+  checkPageBreak(60);
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...hexToRgb(colors.accent));
+  doc.text('DECLARAÇÃO E ASSINATURA', margin, currentY);
+  
+  currentY += 15;
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...hexToRgb(colors.textPrimary));
+  
+  const declaracaoTexto = [
+    'Declaro que conferi todos os horários registrados neste relatório e que',
+    'os mesmos correspondem fielmente aos dias e horários efetivamente trabalhados',
+    'no período especificado.'
+  ];
+  
+  declaracaoTexto.forEach((linha, index) => {
+    doc.text(linha, margin, currentY + (index * 6));
+  });
+  
+  currentY += 30;
+  
+  // Linha para assinatura
+  doc.setLineWidth(0.5);
+  doc.setDrawColor(...hexToRgb(colors.line));
+  doc.line(margin, currentY + 20, pageWidth - margin, currentY + 20);
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...hexToRgb(colors.textPrimary));
+  doc.text(`${funcionario.nome}`, pageWidth / 2, currentY + 30, { align: 'center' });
+  doc.text('Assinatura do Funcionário', pageWidth / 2, currentY + 38, { align: 'center' });
+  
+  // Data da assinatura
+  doc.text(`Data: ___/___/______`, pageWidth - margin - 50, currentY + 30);
+
+  // RODAPÉ
+  const rodapeY = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setTextColor(...hexToRgb(colors.textSecondary));
+  doc.text('Relatório gerado automaticamente pelo Sistema de Ponto Eletrônico', pageWidth / 2, rodapeY, { align: 'center' });
+
+  // Salvar o PDF
+  const nomeArquivo = `relatorio_ponto_${funcionario.nome.replace(/\s+/g, '_')}_${getMonthName(mes)}_${ano}.pdf`;
+  doc.save(nomeArquivo);
 }
 
 /**
- * Calcula minutos trabalhados
+ * Gera um PDF com relatório consolidado de múltiplos funcionários
+ * ATUALIZADA para compatibilidade com a nova estrutura de dados e capping
  */
-export function calcularMinutosTrabalhados(registros: RegistroPonto[]): number {
-  if (registros.length < 2) return 0;
-  let totalMinutos = 0;
-  for (let i = 0; i < registros.length; i += 2) {
-    const entrada = registros[i];
-    const saida = registros[i + 1];
-    if (entrada?.tipo === 'entrada' && saida?.tipo === 'saida' && entrada.timestamp instanceof Timestamp && saida.timestamp instanceof Timestamp) {
-      const diferenca = (saida.timestamp.toDate().getTime() - entrada.timestamp.toDate().getTime()) / (1000 * 60);
-      if (diferenca > 0) totalMinutos += diferenca;
+export function generateConsolidatedPDFReport(
+  nomeEmpresa: string,
+  mes: number,
+  ano: number,
+  reports: MonthlyReportData[]
+): void {
+  const doc = new jsPDF();
+  
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  const margin = 20;
+  let currentY = margin;
+
+  // CABEÇALHO DA EMPRESA
+  doc.setFillColor(...hexToRgb(colors.headerBg));
+  doc.rect(0, 0, pageWidth, 40, 'F');
+  
+  doc.setTextColor(...hexToRgb(colors.white));
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(nomeEmpresa, pageWidth / 2, 25, { align: 'center' });
+  
+  currentY = 50;
+
+  // TÍTULO DO RELATÓRIO
+  doc.setTextColor(...hexToRgb(colors.accent));
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RELATÓRIO CONSOLIDADO MENSAL', pageWidth / 2, currentY, { align: 'center' });
+  
+  currentY += 10;
+  
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...hexToRgb(colors.textPrimary));
+  doc.text(`${getMonthName(mes)} de ${ano}`, pageWidth / 2, currentY, { align: 'center' });
+  
+  currentY += 25;
+
+  // RESUMO GERAL (usando totais cappados dos reports)
+  const totalHorasGeral = reports.reduce((acc, r) => acc + r.totalHoras, 0);
+  const totalHorasExtrasGeral = reports.reduce((acc, r) => acc + r.totalHorasExtras, 0);
+  const totalDiasGeral = reports.reduce((acc, r) => acc + r.diasTrabalhados, 0);
+
+  doc.setFillColor(...hexToRgb(colors.tableAlternateRow));
+  doc.rect(margin, currentY, pageWidth - 2 * margin, 25, 'F');
+  
+  doc.setTextColor(...hexToRgb(colors.textPrimary));
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  
+  const resumoY = currentY + 8;
+  doc.text(`Total de Funcionários: ${reports.length}`, margin + 10, resumoY);
+  doc.text(`Total de Horas: ${formatHours(totalHorasGeral)}`, margin + 10, resumoY + 8);
+  doc.text(`Total de Horas Extras: ${formatHours(totalHorasExtrasGeral)}`, pageWidth - margin - 10, resumoY, { align: 'right' });
+  doc.text(`Média de Dias/Funcionário: ${(totalDiasGeral / reports.length).toFixed(1)}`, pageWidth - margin - 10, resumoY + 8, { align: 'right' });
+  
+  currentY += 35;
+
+  // TABELA CONSOLIDADA (usando totais cappados)
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...hexToRgb(colors.accent));
+  doc.text('DETALHAMENTO POR FUNCIONÁRIO', margin, currentY);
+  
+  currentY += 15;
+
+  const consolidatedData = reports.map(report => [
+    report.funcionario.nome,
+    report.funcionario.departamento || '-',
+    formatHours(report.totalHoras),
+    report.diasTrabalhados.toString(),
+    formatHours(report.totalHorasExtras)
+  ]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [['Funcionário', 'Departamento', 'Total Horas', 'Dias Trabalhados', 'Horas Extras']],
+    body: consolidatedData,
+    theme: 'striped',
+    headStyles: {
+      fillColor: hexToRgb(colors.tableHeaderBg),
+      textColor: hexToRgb(colors.white),
+      fontSize: 11,
+      fontStyle: 'bold'
+    },
+    bodyStyles: {
+      fontSize: 10,
+      textColor: hexToRgb(colors.textPrimary)
+    },
+    columnStyles: {
+      0: { cellWidth: 60 },
+      1: { cellWidth: 40 },
+      2: { cellWidth: 30, halign: 'center' },
+      3: { cellWidth: 25, halign: 'center' },
+      4: { cellWidth: 30, halign: 'center' }
+    },
+    margin: { left: margin, right: margin },
+    alternateRowStyles: {
+      fillColor: hexToRgb(colors.tableAlternateRow)
     }
-  }
-  return totalMinutos;
+  });
+
+  // RODAPÉ
+  const rodapeY = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setTextColor(...hexToRgb(colors.textSecondary));
+  doc.text('Relatório gerado automaticamente pelo Sistema de Ponto Eletrônico', pageWidth / 2, rodapeY, { align: 'center' });
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, rodapeY + 8, { align: 'center' });
+
+  // Salvar o PDF
+  const nomeArquivo = `relatorio_consolidado_${getMonthName(mes)}_${ano}.pdf`;
+  doc.save(nomeArquivo);
 }
 
 /**
- * Formata minutos para horas
+ * Função auxiliar para verificar se jsPDF está disponível
  */
-export function formatarMinutosParaHoras(minutos: number): string {
-  const horas = Math.floor(minutos / 60);
-  const mins = Math.floor(minutos % 60);
-  return `${horas}h ${mins}m`;
+export function isPDFGenerationAvailable(): boolean {
+  try {
+    return typeof jsPDF !== 'undefined';
+  } catch {
+    return false;
+  }
 }

@@ -1,441 +1,338 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { MonthlyReportData, formatHours, formatDate, getMonthName, calculateDailyHours, JORNADA_NORMAL_HORAS, JORNADA_NORMAL_MINUTOS, MAX_WORKED_MINUTOS, MAX_WORKED_HORAS } from '../admin-dash/reportUtils';
+"use client";
 
-export interface PDFReportOptions {
+import { useState, useEffect } from 'react';
+import {
+  getAllEmployees,
+  generateMonthlyReport,
+  Employee,
+  MonthlyReportData,
+  getMonthName,
+  isValidMonthYear,
+} from '../admin-dash/reportUtils';
+import {
+  XCircleIcon,
+  InformationCircleIcon,
+  DocumentTextIcon,
+} from '@heroicons/react/24/outline';
+import { X } from 'lucide-react';
+
+interface ReportGeneratorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onGenerateReport: (reportData: MonthlyReportData, filters: ReportFilters) => void;
+}
+
+interface ReportFilters {
+  funcionarioCpf: string;
+  mes: number;
+  ano: number;
   nomeEmpresa: string;
-  assinaturaFuncionario: string;
-  reportData: MonthlyReportData;
 }
 
-/**
- * Paleta de cores neutra e corporativa
- */
-const colors = {
-  headerBg: '#2D3748', // Cinza escuro
-  textPrimary: '#1A202C', // Quase preto
-  textSecondary: '#4A5568', // Cinza médio
-  accent: '#2B6CB0', // Azul escuro corporativo
-  tableHeaderBg: '#4A5568', // Cinza médio
-  tableAlternateRow: '#F7FAFC', // Cinza claro
-  white: '#FFFFFF',
-  line: '#E2E8F0' // Cinza claro para linhas
-};
+export default function ReportGeneratorModal({
+  isOpen,
+  onClose,
+  onGenerateReport,
+}: ReportGeneratorModalProps) {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
 
-/**
- * Função auxiliar para converter cor hexadecimal para RGB
- */
-function hexToRgb(hex: string): [number, number, number] {
-  const cleanHex = hex.replace('#', '');
-  const r = parseInt(cleanHex.substring(0, 2), 16);
-  const g = parseInt(cleanHex.substring(2, 4), 16);
-  const b = parseInt(cleanHex.substring(4, 6), 16);
-  return [r, g, b];
-}
+  const [filters, setFilters] = useState<ReportFilters>({
+    funcionarioCpf: '',
+    mes: new Date().getMonth() + 1,
+    ano: new Date().getFullYear(),
+    nomeEmpresa: 'MR Azzolini Transportes e Serviços',
+  });
 
-/**
- * Gera um PDF com o relatório mensal de ponto do funcionário
- * ATUALIZADA para novo capping dinâmico: extras após 10h48, max 2h extras (total max 12h48)
- */
-export function generatePDFReport(options: PDFReportOptions): void {
-  const { nomeEmpresa, assinaturaFuncionario, reportData } = options;
-  const { funcionario, mes, ano, totalHoras, totalHorasExtras, diasTrabalhados, registrosPorDia } = reportData;
-
-  // Criar novo documento PDF
-  const doc = new jsPDF();
-  
-  // Configurações
-  const pageWidth = doc.internal.pageSize.width;
-  const pageHeight = doc.internal.pageSize.height;
-  const margin = 20;
-  let currentY = margin;
-
-  // Função auxiliar para adicionar nova página se necessário
-  const checkPageBreak = (neededHeight: number) => {
-    if (currentY + neededHeight > pageHeight - margin) {
-      doc.addPage();
-      currentY = margin;
-      return true;
+  useEffect(() => {
+    if (isOpen) {
+      loadEmployees();
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
-    return false;
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  const loadEmployees = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const employeesList = await getAllEmployees();
+      setEmployees(employeesList);
+    } catch (err) {
+      console.error('Erro ao carregar funcionários:', err);
+      setError('Erro ao carregar lista de funcionários.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // CABEÇALHO DA EMPRESA
-  doc.setFillColor(...hexToRgb(colors.headerBg));
-  doc.rect(0, 0, pageWidth, 40, 'F');
-  
-  doc.setTextColor(...hexToRgb(colors.white));
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text(nomeEmpresa, pageWidth / 2, 25, { align: 'center' });
-  
-  currentY = 50;
+  const handleGenerateReport = async () => {
+    if (!filters.funcionarioCpf) {
+      setError('Selecione um funcionário.');
+      return;
+    }
 
-  // TÍTULO DO RELATÓRIO
-  doc.setTextColor(...hexToRgb(colors.accent));
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Relatório Mensal', pageWidth / 2, currentY, { align: 'center' });
-  
-  currentY += 10;
+    if (!isValidMonthYear(filters.mes, filters.ano)) {
+      setError('Período inválido. Não é possível gerar relatórios para períodos futuros.');
+      return;
+    }
 
-  // INFORMAÇÕES DO FUNCIONÁRIO
-  doc.setFillColor(...hexToRgb(colors.tableAlternateRow));
-  doc.rect(margin, currentY, pageWidth - 2 * margin, 35, 'F');
-  
-  doc.setTextColor(...hexToRgb(colors.textPrimary));
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  
-  const infoY = currentY + 10;
-  doc.text(`Funcionário: ${funcionario.nome}`, margin + 10, infoY);
-  doc.text(`CPF: ${funcionario.cpf}`, margin + 10, infoY + 8);
-  doc.text(`Período: ${getMonthName(mes)} de ${ano}`, pageWidth - margin - 10, infoY, { align: 'right' });
-  doc.text(`Data de emissão: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - margin - 10, infoY + 8, { align: 'right' });
-  
-  currentY += 45;
+    setGenerating(true);
+    setError(null);
 
-  // RESUMO MENSAL (usando totais cappados)
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...hexToRgb(colors.accent));
-  doc.text('RESUMO MENSAL', margin, currentY);
-  
-  currentY += 8;
+    try {
+      const reportData = await generateMonthlyReport(
+        filters.funcionarioCpf,
+        filters.mes,
+        filters.ano
+      );
 
-  // Tabela de resumo - usando totais cappados
-  const resumoData = [
-    ['Total de Horas Trabalhadas', formatHours(totalHoras)],
-    ['Dias Trabalhados', diasTrabalhados.toString()],
-    ['Total de Horas Extras', formatHours(totalHorasExtras)],
-    ['Média Diária', formatHours(diasTrabalhados > 0 ? totalHoras / diasTrabalhados : 0)]
-  ];
-
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Descrição', 'Valor']],
-    body: resumoData,
-    theme: 'grid',
-    headStyles: {
-      fillColor: hexToRgb(colors.tableHeaderBg),
-      textColor: hexToRgb(colors.white),
-      fontSize: 11,
-      fontStyle: 'bold'
-    },
-    bodyStyles: {
-      fontSize: 10,
-      textColor: hexToRgb(colors.textPrimary)
-    },
-    columnStyles: {
-      0: { cellWidth: 120 },
-      1: { cellWidth: 60, halign: 'center' }
-    },
-    margin: { left: margin, right: margin }
-  });
-
-  currentY = (doc as any).lastAutoTable.finalY + 15;
-
-  // DETALHAMENTO DIÁRIO
-  checkPageBreak(30);
-
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...hexToRgb(colors.accent));
-  doc.text('DETALHAMENTO DIÁRIO', margin, currentY);
-
-  currentY += 15;
-
-  // Preparar dados da tabela diária (com ajuste dinâmico de extras após 10h48, cap max 12h48)
-  const dailyTableData = registrosPorDia.map(dia => {
-    const dataFormatada = formatDate(dia.data);
-    const horasTrabalhadasDisplay = dia.horasTrabalhadas; // cappada
-    const horasExtrasDisplay = dia.horasExtras; // dinâmica, max 2h
-    const horasTrabalhadasOriginal = calculateDailyHours(dia.registros);
-    
-    let horasTrabalhadasStr = formatHours(horasTrabalhadasDisplay);
-    let horasExtrasStr = horasExtrasDisplay > 0 ? formatHours(horasExtrasDisplay) : '-';
-    let horariosDisplay = dia.registros.map(r => {
-      const hora = r.timestamp.toDate().toLocaleTimeString('pt-BR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-      return `${r.tipo}: ${hora}`;
-    }).join(' | ');
-    
-    // Se horas originais excedem 12h48min, ajustar o horário da última saída para display
-    if (horasTrabalhadasOriginal > MAX_WORKED_HORAS && dia.registros.length >= 2) {
-      const lastRegistro = dia.registros[dia.registros.length - 1];
-      if (lastRegistro.tipo === 'saida') {
-        let prevMinutos = 0;
-        for (let i = 0; i < dia.registros.length - 2; i += 2) {
-          const entrada = dia.registros[i];
-          const saida = dia.registros[i + 1];
-          if (entrada && saida && entrada.tipo === 'entrada' && saida.tipo === 'saida') {
-            prevMinutos += (saida.timestamp.toDate().getTime() - entrada.timestamp.toDate().getTime()) / (1000 * 60);
-          }
-        }
-        
-        const lastEntry = dia.registros[dia.registros.length - 2];
-        const remainingMin = MAX_WORKED_MINUTOS - prevMinutos;
-        
-        if (remainingMin > 0 && lastEntry) {
-          const adjustedExitTime = new Date(lastEntry.timestamp.toDate().getTime() + remainingMin * 60 * 1000);
-          const adjustedHora = adjustedExitTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-          
-          const parts = horariosDisplay.split(' | ');
-          if (parts.length > 0) {
-            const lastPartIndex = parts.length - 1;
-            if (parts[lastPartIndex].startsWith('saida:')) {
-              parts[lastPartIndex] = `saida: ${adjustedHora}`;
-              horariosDisplay = parts.join(' | ');
-            }
-          }
-        }
+      if (!reportData || reportData.diasComRegistro === 0) {
+        setError('Não foram encontrados registros para o funcionário no período selecionado.');
+        return;
       }
+
+      onGenerateReport(reportData, filters);
+      handleClose();
+    } catch (err) {
+      console.error('Erro ao gerar relatório:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao gerar relatório.';
+      setError(errorMessage);
+    } finally {
+      setGenerating(false);
     }
-    
-    const statusStr = dia.completo ? 'Completo' : 'Incompleto';
-    
-    return [
-      dataFormatada,
-      horariosDisplay || '-',
-      horasTrabalhadasStr,
-      horasExtrasStr,
-      statusStr
-    ];
-  });
+  };
 
-  // Verificar se precisa quebrar página para a tabela
-  const estimatedTableHeight = (dailyTableData.length + 1) * 8 + 20;
-  checkPageBreak(estimatedTableHeight);
-
-  // FIXED: Using autoTable function directly
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Data', 'Horários', 'Horas Trabalhadas', 'Horas Extras', 'Status']],
-    body: dailyTableData,
-    theme: 'striped',
-    headStyles: {
-      fillColor: hexToRgb(colors.tableHeaderBg),
-      textColor: hexToRgb(colors.white),
-      fontSize: 10,
-      fontStyle: 'bold'
-    },
-    bodyStyles: {
-      fontSize: 9,
-      textColor: hexToRgb(colors.textPrimary)
-    },
-    columnStyles: {
-      0: { cellWidth: 20 },
-      1: { cellWidth: 90 },
-      2: { cellWidth: 25, halign: 'center' },
-      3: { cellWidth: 20, halign: 'center' },
-      4: { cellWidth: 20, halign: 'center' }
-    },
-    margin: { left: margin, right: margin },
-    alternateRowStyles: {
-      fillColor: hexToRgb(colors.tableAlternateRow)
+  const validatePeriod = (mes: number, ano: number) => {
+    if (!isValidMonthYear(mes, ano)) {
+      setError('Período inválido. Não é possível selecionar períodos futuros.');
+    } else {
+      setError(null);
     }
-  });
+  };
 
-  currentY = (doc as any).lastAutoTable.finalY + 30;
+  const handleMesChange = (newMes: number) => {
+    setFilters({ ...filters, mes: newMes });
+    validatePeriod(newMes, filters.ano);
+  };
 
-  // OBSERVAÇÕES (atualizadas para novas regras)
-  checkPageBreak(40);
-  
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...hexToRgb(colors.accent));
-  doc.text('OBSERVAÇÕES:', margin, currentY);
-  
-  currentY += 10;
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...hexToRgb(colors.textPrimary));
-  doc.text('• Jornada normal: 8h 48min por dia', margin + 5, currentY);
-  doc.text('• Horas extras: calculadas após 10h48min trabalhadas (máximo 2h/dia, total max 12h48min)', margin + 5, currentY + 8);
-  doc.text('• Dias completos: dias com pelo menos uma entrada e uma saída', margin + 5, currentY + 16);
-  
-  currentY += 35;
+  const handleAnoChange = (newAno: number) => {
+    setFilters({ ...filters, ano: newAno });
+    validatePeriod(filters.mes, newAno);
+  };
 
-  // CAMPO DE ASSINATURA
-  checkPageBreak(60);
-  
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...hexToRgb(colors.accent));
-  doc.text('DECLARAÇÃO E ASSINATURA', margin, currentY);
-  
-  currentY += 15;
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...hexToRgb(colors.textPrimary));
-  
-  const declaracaoTexto = [
-    'Declaro que conferi todos os horários registrados neste relatório e que',
-    'os mesmos correspondem fielmente aos dias e horários efetivamente trabalhados',
-    'no período especificado.'
-  ];
-  
-  declaracaoTexto.forEach((linha, index) => {
-    doc.text(linha, margin, currentY + (index * 6));
-  });
-  
-  currentY += 30;
-  
-  // Linha para assinatura
-  doc.setLineWidth(0.5);
-  doc.setDrawColor(...hexToRgb(colors.line));
-  doc.line(margin, currentY + 20, pageWidth - margin, currentY + 20);
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...hexToRgb(colors.textPrimary));
-  doc.text(`${funcionario.nome}`, pageWidth / 2, currentY + 30, { align: 'center' });
-  doc.text('Assinatura do Funcionário', pageWidth / 2, currentY + 38, { align: 'center' });
-  
-  // Data da assinatura
-  doc.text(`Data: ___/___/______`, pageWidth - margin - 50, currentY + 30);
+  const handleClose = () => {
+    setFilters({
+      funcionarioCpf: '',
+      mes: new Date().getMonth() + 1,
+      ano: new Date().getFullYear(),
+      nomeEmpresa: 'MR Azzolini Transportes e Serviços',
+    });
+    setError(null);
+    onClose();
+  };
 
-  // RODAPÉ
-  const rodapeY = pageHeight - 15;
-  doc.setFontSize(8);
-  doc.setTextColor(...hexToRgb(colors.textSecondary));
-  doc.text('Relatório gerado automaticamente pelo Sistema de Ponto Eletrônico', pageWidth / 2, rodapeY, { align: 'center' });
+  if (!isOpen) return null;
 
-  // Salvar o PDF
-  const nomeArquivo = `relatorio_ponto_${funcionario.nome.replace(/\s+/g, '_')}_${getMonthName(mes)}_${ano}.pdf`;
-  doc.save(nomeArquivo);
-}
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md sm:max-w-lg max-h-[80vh] sm:max-h-[85vh] overflow-y-auto">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-gray-700 to-gray-900 text-white p-3 sm:p-4 rounded-t-xl">
+          <div className="flex justify-between items-center gap-3">
+            <div>
+              <h2 className="text-base sm:text-lg font-semibold">Gerar Relatório</h2>
+              <p className="text-gray-200 text-xs sm:text-sm mt-1">
+                Relatório mensal de ponto
+              </p>
+            </div>
+            <button
+              onClick={handleClose}
+              className="text-white hover:text-gray-300 transition-colors p-1"
+              disabled={generating}
+              aria-label="Fechar modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
 
-/**
- * Gera um PDF com relatório consolidado de múltiplos funcionários
- * ATUALIZADA para novo capping dinâmico
- */
-export function generateConsolidatedPDFReport(
-  nomeEmpresa: string,
-  mes: number,
-  ano: number,
-  reports: MonthlyReportData[]
-): void {
-  const doc = new jsPDF();
-  
-  const pageWidth = doc.internal.pageSize.width;
-  const pageHeight = doc.internal.pageSize.height;
-  const margin = 20;
-  let currentY = margin;
+        {/* Content */}
+        <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 text-sm">
+          {/* Mensagem de Erro */}
+          {error && (
+            <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center gap-2 text-sm">
+              <XCircleIcon className="w-4 h-4" />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
 
-  // CABEÇALHO DA EMPRESA
-  doc.setFillColor(...hexToRgb(colors.headerBg));
-  doc.rect(0, 0, pageWidth, 40, 'F');
-  
-  doc.setTextColor(...hexToRgb(colors.white));
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text(nomeEmpresa, pageWidth / 2, 25, { align: 'center' });
-  
-  currentY = 50;
+          {/* Informações da Empresa */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Nome da Empresa
+            </label>
+            <input
+              type="text"
+              value={filters.nomeEmpresa}
+              onChange={(e) => setFilters({ ...filters, nomeEmpresa: e.target.value })}
+              className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+              placeholder="Nome da empresa"
+              disabled={true}
+            />
+          </div>
 
-  // TÍTULO DO RELATÓRIO
-  doc.setTextColor(...hexToRgb(colors.accent));
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('RELATÓRIO CONSOLIDADO MENSAL', pageWidth / 2, currentY, { align: 'center' });
-  
-  currentY += 10;
-  
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...hexToRgb(colors.textPrimary));
-  doc.text(`${getMonthName(mes)} de ${ano}`, pageWidth / 2, currentY, { align: 'center' });
-  
-  currentY += 25;
+          {/* Seleção de Funcionário */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Funcionário *
+            </label>
+            {loading ? (
+              <div className="flex items-center gap-2 p-2 text-gray-500 text-sm">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-500"></div>
+                Carregando funcionários...
+              </div>
+            ) : (
+              <select
+                value={filters.funcionarioCpf}
+                onChange={(e) => setFilters({ ...filters, funcionarioCpf: e.target.value })}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                disabled={generating}
+                aria-label="Selecionar funcionário"
+              >
+                <option value="">Selecione um funcionário</option>
+                {employees.map((employee) => (
+                  <option key={employee.cpf} value={employee.cpf}>
+                    {employee.nome} - {employee.cpf}
+                    {employee.departamento && ` (${employee.departamento})`}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
-  // RESUMO GERAL (usando totais cappados dos reports)
-  const totalHorasGeral = reports.reduce((acc, r) => acc + r.totalHoras, 0);
-  const totalHorasExtrasGeral = reports.reduce((acc, r) => acc + r.totalHorasExtras, 0);
-  const totalDiasGeral = reports.reduce((acc, r) => acc + r.diasTrabalhados, 0);
+          {/* Período */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Mês *
+              </label>
+              <select
+                value={filters.mes}
+                onChange={(e) => handleMesChange(parseInt(e.target.value))}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                disabled={generating}
+                aria-label="Selecionar mês"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((mes) => (
+                  <option key={mes} value={mes}>
+                    {getMonthName(mes)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Ano *
+              </label>
+              <select
+                value={filters.ano}
+                onChange={(e) => handleAnoChange(parseInt(e.target.value))}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                disabled={generating}
+                aria-label="Selecionar ano"
+              >
+                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((ano) => (
+                  <option key={ano} value={ano}>
+                    {ano}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-  doc.setFillColor(...hexToRgb(colors.tableAlternateRow));
-  doc.rect(margin, currentY, pageWidth - 2 * margin, 25, 'F');
-  
-  doc.setTextColor(...hexToRgb(colors.textPrimary));
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  
-  const resumoY = currentY + 8;
-  doc.text(`Total de Funcionários: ${reports.length}`, margin + 10, resumoY);
-  doc.text(`Total de Horas: ${formatHours(totalHorasGeral)}`, margin + 10, resumoY + 8);
-  doc.text(`Total de Horas Extras: ${formatHours(totalHorasExtrasGeral)}`, pageWidth - margin - 10, resumoY, { align: 'right' });
-  doc.text(`Média de Dias/Funcionário: ${(totalDiasGeral / reports.length).toFixed(1)}`, pageWidth - margin - 10, resumoY + 8, { align: 'right' });
-  
-  currentY += 35;
+          {/* Preview */}
+          {filters.funcionarioCpf && (
+            <div className="bg-gray-50 rounded-md p-3 border">
+              <h3 className="font-medium text-gray-800 mb-2 text-sm">
+                Preview do Relatório
+              </h3>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p>
+                  <strong>Empresa:</strong> {filters.nomeEmpresa}
+                </p>
+                <p>
+                  <strong>Funcionário:</strong>{' '}
+                  {employees.find((e) => e.cpf === filters.funcionarioCpf)?.nome}
+                </p>
+                <p>
+                  <strong>CPF:</strong> {filters.funcionarioCpf}
+                </p>
+                <p>
+                  <strong>Período:</strong> {getMonthName(filters.mes)} de {filters.ano}
+                </p>
+              </div>
+            </div>
+          )}
 
-  // TABELA CONSOLIDADA (usando totais cappados)
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...hexToRgb(colors.accent));
-  doc.text('DETALHAMENTO POR FUNCIONÁRIO', margin, currentY);
-  
-  currentY += 15;
+          {/* Informações sobre Horas Extras */}
+          <div className="bg-gray-200 text-white p-3 sm:p-4 rounded-t-xl">
+            <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2 text-sm">
+              <InformationCircleIcon className="w-4 h-4" />
+              Informações sobre o Relatório
+            </h3>
+            <div className="text-xs text-gray-900 space-y-1">
+              <p>• <strong>Jornada Normal:</strong> 8 horas e 48 minutos por dia</p>
+              <p>• <strong>Horas Extras:</strong> Tempo trabalhado acima da jornada normal</p>
+              <p>• <strong>Dias Trabalhados:</strong> Dias com pelo menos uma entrada e uma saída</p>
+              <p>• <strong>Cálculos:</strong> Baseados nos registros de ponto do funcionário</p>
+            </div>
+          </div>
+        </div>
 
-  const consolidatedData = reports.map(report => [
-    report.funcionario.nome,
-    report.funcionario.departamento || '-',
-    formatHours(report.totalHoras),
-    report.diasTrabalhados.toString(),
-    formatHours(report.totalHorasExtras)
-  ]);
+        {/* Footer */}
+        <div className="bg-gray-50 px-3 sm:px-4 py-3 rounded-b-xl flex flex-col sm:flex-row justify-end gap-2">
+          <button
+            onClick={handleClose}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg text-sm sm:text-base w-full sm:w-auto"
+            disabled={generating}
+            aria-label="Cancelar geração de relatório"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleGenerateReport}
+            disabled={generating || !filters.funcionarioCpf || !isValidMonthYear(filters.mes, filters.ano)}
+            // className="bg-gradient-to-r from-gray-700 to-gray-900 text-white p-4 sm:p-6 rounded-t-xl"
+            className={`px-3 py-1.5 rounded-md font-medium transition-all text-sm w-full sm:w-auto flex items-center justify-center gap-2 ${generating || !filters.funcionarioCpf || !isValidMonthYear(filters.mes, filters.ano)
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-gradient-to-r from-gray-700 to-gray-900 text-white hover:from-gray-700 hover:to-indigo-700 transform hover:-translate-y-0.5 hover:shadow-md'
+              }`}
+          >
+            {generating ? (
+              <>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                Gerando PDF...
+              </>
+            ) : (
+              <>
+                <DocumentTextIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Gerar Relatório PDF</span>
+                <span className="sm:hidden">Gerar PDF</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
 
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Funcionário', 'Departamento', 'Total Horas', 'Dias Trabalhados', 'Horas Extras']],
-    body: consolidatedData,
-    theme: 'striped',
-    headStyles: {
-      fillColor: hexToRgb(colors.tableHeaderBg),
-      textColor: hexToRgb(colors.white),
-      fontSize: 11,
-      fontStyle: 'bold'
-    },
-    bodyStyles: {
-      fontSize: 10,
-      textColor: hexToRgb(colors.textPrimary)
-    },
-    columnStyles: {
-      0: { cellWidth: 60 },
-      1: { cellWidth: 40 },
-      2: { cellWidth: 30, halign: 'center' },
-      3: { cellWidth: 25, halign: 'center' },
-      4: { cellWidth: 30, halign: 'center' }
-    },
-    margin: { left: margin, right: margin },
-    alternateRowStyles: {
-      fillColor: hexToRgb(colors.tableAlternateRow)
-    }
-  });
-
-  // RODAPÉ
-  const rodapeY = pageHeight - 15;
-  doc.setFontSize(8);
-  doc.setTextColor(...hexToRgb(colors.textSecondary));
-  doc.text('Relatório gerado automaticamente pelo Sistema de Ponto Eletrônico', pageWidth / 2, rodapeY, { align: 'center' });
-  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, rodapeY + 8, { align: 'center' });
-
-  // Salvar o PDF
-  const nomeArquivo = `relatorio_consolidado_${getMonthName(mes)}_${ano}.pdf`;
-  doc.save(nomeArquivo);
-}
-
-/**
- * Função auxiliar para verificar se jsPDF está disponível
- */
-export function isPDFGenerationAvailable(): boolean {
-  try {
-    return typeof jsPDF !== 'undefined';
-  } catch {
-    return false;
-  }
+    </div>
+  );
 }

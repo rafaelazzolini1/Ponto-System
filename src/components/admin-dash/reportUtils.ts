@@ -45,11 +45,11 @@ export interface MonthlyReportData {
 export const JORNADA_NORMAL_MINUTOS = 8 * 60 + 48;
 export const JORNADA_NORMAL_HORAS = JORNADA_NORMAL_MINUTOS / 60;
 export const MAX_OVERTIME_HORAS = 2;
-export const OVERTIME_START_MINUTOS = JORNADA_NORMAL_MINUTOS + 120; // 10h48m
-export const OVERTIME_START_HORAS = OVERTIME_START_MINUTOS / 60;
-export const MAX_WORKED_MINUTOS = OVERTIME_START_MINUTOS + MAX_OVERTIME_HORAS * 60; // 12h48m
+export const MAX_WORKED_MINUTOS = 10 * 60 + 48;
 export const MAX_WORKED_HORAS = MAX_WORKED_MINUTOS / 60;
 export const NORMAL_END_TIME = '15:48';
+export const OVERTIME_START_MINUTOS = JORNADA_NORMAL_MINUTOS + 120;
+export const OVERTIME_START_HORAS = OVERTIME_START_MINUTOS / 60;
 
 /**
  * Busca todos os funcionários
@@ -103,11 +103,10 @@ export function calculateDailyHours(registros: RegistroPonto[]): number {
 }
 
 /**
- * Calcula as horas extras de um dia (dinâmico, após 10:48, max 2h)
+ * Calcula as horas extras de um dia
  */
 export function calculateDailyOvertime(horasTrabalhadas: number): number {
-  const overtime = Math.max(0, horasTrabalhadas - OVERTIME_START_HORAS);
-  return Math.min(overtime, MAX_OVERTIME_HORAS);
+  return Math.max(0, horasTrabalhadas - OVERTIME_START_HORAS);
 }
 
 /**
@@ -148,7 +147,7 @@ export function groupRegistrosByDay(registrosPonto: { [data: string]: RegistroPo
 }
 
 /**
- * Gera dados completos do relatório mensal (com cálculo dinâmico de extras após 10:48, cap 2h extras)
+ * Gera dados completos do relatório mensal
  */
 export async function generateMonthlyReport(funcionarioCpf: string, mes: number, ano: number): Promise<MonthlyReportData> {
   try {
@@ -167,19 +166,20 @@ export async function generateMonthlyReport(funcionarioCpf: string, mes: number,
 
     registrosPorDia.forEach((registros, data) => {
       const horasTrabalhadasOriginal = calculateDailyHours(registros);
-      const horasExtras = calculateDailyOvertime(horasTrabalhadasOriginal);
-      const horasTrabalhadasCappada = Math.min(horasTrabalhadasOriginal, OVERTIME_START_HORAS + MAX_OVERTIME_HORAS);
+      const horasExtrasOriginal = calculateDailyOvertime(horasTrabalhadasOriginal);
+      const horasTrabalhadasCappada = Math.min(horasTrabalhadasOriginal, JORNADA_NORMAL_HORAS + 1);
+      const horasExtrasCappada = horasTrabalhadasCappada > JORNADA_NORMAL_HORAS ? 1 : 0;
       const completo = isDayComplete(registros);
 
       if (completo) diasTrabalhados++;
       totalHoras += horasTrabalhadasCappada;
-      totalHorasExtras += horasExtras;
+      totalHorasExtras += horasExtrasCappada;
 
       dailyData.push({
         data,
         registros,
         horasTrabalhadas: horasTrabalhadasCappada,
-        horasExtras,
+        horasExtras: horasExtrasCappada,
         completo
       });
     });
