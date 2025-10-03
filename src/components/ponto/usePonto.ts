@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Cookies from 'js-cookie';
@@ -60,15 +60,15 @@ export const usePonto = (): UsePontoReturn => {
     permissaoNegada: false
   });
 
-  const getLocalDateString = (): string => {
+  const getLocalDateString = useCallback((): string => {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
-  };
+  }, []);
 
-  const calcularStatusPonto = (registrosHoje: RegistroPonto[]) => {
+  const calcularStatusPonto = useCallback((registrosHoje: RegistroPonto[]) => {
     const ultimoRegistro = registrosHoje[registrosHoje.length - 1];
     const limiteDiarioAtingido = registrosHoje.length >= 4;
     const registrosRestantes = Math.max(0, 4 - registrosHoje.length);
@@ -105,9 +105,9 @@ export const usePonto = (): UsePontoReturn => {
         registrosRestantes
       });
     }
-  };
+  }, []);
 
-  const obterGeolocalizacao = async (): Promise<GeolocationPosition | null> => {
+  const obterGeolocalizacao = useCallback(async (): Promise<GeolocationPosition | null> => {
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
         setGeolocationStatus({
@@ -210,12 +210,17 @@ export const usePonto = (): UsePontoReturn => {
         options
       );
     });
-  };
+  }, []);
 
-  const obterEnderecoAproximado = async (latitude: number, longitude: number): Promise<string | undefined> => {
+  const obterEnderecoAproximado = useCallback(async (latitude: number, longitude: number): Promise<string | undefined> => {
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'PontoApp/1.0'
+          }
+        }
       );
       const data = await response.json();
       if (data && data.address) {
@@ -228,9 +233,9 @@ export const usePonto = (): UsePontoReturn => {
       console.warn('Erro ao obter endereço:', error);
       return undefined;
     }
-  };
+  }, []);
 
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     const cpfCookie = Cookies.get("cpf");
 
     if (!cpfCookie) {
@@ -240,6 +245,8 @@ export const usePonto = (): UsePontoReturn => {
 
     try {
       setCpf(cpfCookie);
+      
+      // Buscar dados do usuário SEM listener - apenas uma vez
       const userDoc = await getDoc(doc(db, "users", cpfCookie));
 
       if (userDoc.exists()) {
@@ -259,9 +266,9 @@ export const usePonto = (): UsePontoReturn => {
       console.error("Erro ao buscar usuário:", error);
       setNome("Erro ao carregar dados");
     }
-  };
+  }, [getLocalDateString, calcularStatusPonto]);
 
-  const registrarPonto = async (tipo: 'entrada' | 'saida') => {
+  const registrarPonto = useCallback(async (tipo: 'entrada' | 'saida') => {
     if (!cpf) {
       throw new Error('CPF não encontrado');
     }
@@ -330,21 +337,7 @@ export const usePonto = (): UsePontoReturn => {
     } finally {
       setCarregando(false);
     }
-  };
-
-  useEffect(() => {
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-        if (result.state === 'denied') {
-          setGeolocationStatus(prev => ({
-            ...prev,
-            permissaoNegada: true,
-            erro: 'Permissão de localização negada'
-          }));
-        }
-      });
-    }
-  }, []);
+  }, [cpf, registrosHoje, getLocalDateString, obterGeolocalizacao, obterEnderecoAproximado, calcularStatusPonto]);
 
   return {
     nome,
