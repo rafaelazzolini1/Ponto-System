@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ponto App"
+  title: "Ponto App",
+  icons: {
+    icon: "/favicon.ico",  // Caminho para sua imagem (ajuste se o nome for diferente)
+  },
 };
 
 export default function RootLayout({
