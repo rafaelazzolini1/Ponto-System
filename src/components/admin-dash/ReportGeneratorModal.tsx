@@ -290,8 +290,7 @@ const handleClose = () => {
             <div className="text-xs text-gray-900 space-y-1">
               <p>• <strong>Jornada Normal:</strong> 8 horas e 48 minutos por dia</p>
               <p>• <strong>Horas Extras:</strong> Tempo trabalhado acima da jornada normal</p>
-              <p>• <strong>Dias Trabalhados:</strong> Dias com pelo menos uma entrada e uma saída</p>
-              <p>• <strong>Cálculos:</strong> Baseados nos registros de ponto do funcionário</p>
+              <p>• <strong>Cálculo:</strong> Baseado nos registros de ponto do funcionário</p>
             </div>
           </div>
         </div>

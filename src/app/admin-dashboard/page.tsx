@@ -11,6 +11,8 @@ import {
   ChartBarIcon,
   UsersIcon,
   ClockIcon,
+  BanknotesIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { ProtectedRoute } from '../../hooks/RoleBasedRedirect';
 import { useAuth } from '../../hooks/useAuth';
@@ -26,11 +28,10 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell,
 } from 'recharts';
 import { AlarmClockCheckIcon } from 'lucide-react';
+import BancoHoras from '../../components/admin-dash/BancoHoras';
 
 interface EmployeeData {
   cpf: string;
@@ -63,6 +64,8 @@ interface DashboardStats {
   registrosHoje: number;
 }
 
+type TabType = 'registros' | 'banco-horas';
+
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const [employees, setEmployees] = useState<EmployeeData[]>([]);
@@ -72,6 +75,7 @@ export default function AdminDashboard() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<number>(0);
   const scrollPositionRef = useRef<number>(0);
+  const [activeTab, setActiveTab] = useState<TabType>('registros');
   const [stats, setStats] = useState<DashboardStats>({
     totalFuncionarios: 0,
     funcionariosTrabalhando: 0,
@@ -344,22 +348,14 @@ export default function AdminDashboard() {
     return { entradaInicial, saidaInicial, entradaFinal, saidaFinal };
   };
 
-  const formatarCoordenada = (coord?: number): string => {
-    return coord !== undefined ? coord.toFixed(6) : '-';
-  };
-
   const calcularHorasExtras = (minutosTrabalhados: number): string => {
-    const limiteHorasNormais = 8 * 60 + 48; // 8:48 em minutos
+    const limiteHorasNormais = 8 * 60 + 48;
     if (minutosTrabalhados > limiteHorasNormais) {
       const minutosExtras = minutosTrabalhados - limiteHorasNormais;
       return formatarMinutosParaHoras(minutosExtras);
     }
     return '-';
   };
-
-  const hasHorasExtras = filteredEmployees.some(
-    (employee) => employee.horasTrabalhadasMinutos > (8 * 60 + 48)
-  );
 
   const isInterval = filters.dataInicio && filters.dataFim && filters.dataInicio !== filters.dataFim;
 
@@ -461,266 +457,253 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Estatísticas Gerais */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <ClockIcon className="w-6 h-6 mx-auto mb-2 text-green-600" />
-              <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.funcionariosTrabalhando}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Trabalhando</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <ClockIcon className="w-6 h-6 mx-auto mb-2 text-yellow-600" />
-              <div className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.funcionariosAusentes}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Ausentes</div>
-            </div>
-            {/* <div className="bg-white rounded-lg shadow p-4 text-center">
-              <ClockIcon className="w-6 h-6 mx-auto mb-2 text-purple-600" />
-              <div className="text-xl sm:text-2xl font-bold text-purple-600">{stats.funcionariosCompletos}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Completos</div>
-            </div> */}
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <ClockIcon className="w-6 h-6 mx-auto mb-2 text-indigo-600" />
-              <div className="text-lg sm:text-xl font-bold text-indigo-600">
-                {formatarMinutosParaHoras(stats.totalHorasHoje)}
-              </div>
-              <div className="text-xs sm:text-sm text-gray-600">Total Horas</div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4 text-center">
-              <UsersIcon className="w-6 h-6 mx-auto mb-2 text-blue-600" />
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">{stats.totalFuncionarios}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Total Funcionários</div>
-            </div>
-            {/* <div className="bg-white rounded-lg shadow p-4 text-center">
-              <DocumentTextIcon className="w-6 h-6 mx-auto mb-2 text-red-600" />
-              <div className="text-xl sm:text-2xl font-bold text-red-600">{stats.registrosHoje}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Registros</div>
-            </div> */}
-          </div>
-
-          {/* Filtros */}
-          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-6">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Filtros</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Início</label>
-                <input
-                  type="date"
-                  value={filters.dataInicio}
-                  onChange={(e) => setFilters({ ...filters, dataInicio: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Fim</label>
-                <input
-                  type="date"
-                  value={filters.dataFim}
-                  onChange={(e) => setFilters({ ...filters, dataFim: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">CPF</label>
-                <input
-                  type="text"
-                  placeholder="Filtrar por CPF"
-                  value={filters.cpf}
-                  onChange={(e) => setFilters({ ...filters, cpf: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <input
-                  type="text"
-                  placeholder="Filtrar por nome"
-                  value={filters.nome}
-                  onChange={(e) => setFilters({ ...filters, nome: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
-                />
-              </div>
-              {/* <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
-                >
-                  <option value="todos">Todos</option>
-                  <option value="trabalhando">Trabalhando</option>
-                  <option value="ausente">Ausente</option>
-                  <option value="completo">Completo</option>
-                  <option value="sem_registro">Sem Registro</option>
-                </select>
-              </div> */}
-            </div>
-          </div>
-
-          {/* Gráficos */}
-          {filteredEmployees.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
-              {showHorasPerFuncChart && (
-                <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <AlarmClockCheckIcon className="w-5 h-5" />
-                    Horas Trabalhadas por Funcionário
-                  </h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={dadosGraficoHoras}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="nome"
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                        fontSize={10}
-                      />
-                      <YAxis tickFormatter={horasTickFormatter} fontSize={12} />
-                      <Tooltip
-                        formatter={horasTooltipFormatter}
-                        labelFormatter={(label) => `Funcionário: ${label}`}
-                      />
-                      <Bar dataKey="horas" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-              {showTotalHorasChart && (
-                <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <ChartBarIcon className="w-5 h-5" />
-                    Total de Horas Trabalhadas
-                  </h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={dadosGraficoTotalHoras}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" fontSize={12} />
-                      <YAxis tickFormatter={horasTickFormatter} fontSize={12} />
-                      <Tooltip formatter={horasTooltipFormatter} />
-                      <Bar dataKey="horas">
-                        {dadosGraficoTotalHoras.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tabela de Funcionários */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="p-4 sm:p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
-                Funcionários ({filteredEmployees.length})
-              </h2>
+          {/* Tabs */}
+          <div className="bg-white rounded-xl shadow-lg mb-6">
+            <div className="flex border-b border-gray-200">
               <button
-                type="button"
-                onClick={handleRefresh}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg flex items-center gap-2 text-sm"
+                onClick={() => setActiveTab('registros')}
+                className={`flex-1 px-6 py-4 text-sm sm:text-base font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${activeTab === 'registros'
+                  ? 'border-b-2 border-gray-600 text-gray-800 bg-gray-100'
+                  : 'text-gray-800 hover:text-gray-800 hover:bg-gray-200'
+                  }`}
               >
-                <ArrowPathIcon className="w-5 h-5" />
-                Atualizar
+                <ClipboardDocumentListIcon className="w-5 h-5" />
+                Registros de Ponto
+              </button>
+              <button
+                onClick={() => setActiveTab('banco-horas')}
+                className={`flex-1 px-6 py-4 text-sm sm:text-base font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${activeTab === 'banco-horas'
+                  ? 'border-b-2 border-gray-600 text-gray-800 bg-gray-100'
+                  : 'text-gray-800 hover:text-gray-800 hover:bg-gray-200'
+                  }`}
+              >
+                <BanknotesIcon className="w-5 h-5" />
+                Banco de Horas
               </button>
             </div>
+          </div>
 
-            {filteredEmployees.length === 0 ? (
-              <div className="p-6 sm:p-8 text-center text-gray-500">
-                <DocumentTextIcon className="w-12 h-12 mx-auto mb-4" />
-                <p className="text-base sm:text-lg">Nenhum funcionário encontrado</p>
-                <p className="text-xs sm:text-sm mt-2">Ajuste os filtros para ver os dados</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Nome
-                      </th>
-                      {!isInterval && (
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                      )}
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Horas Trabalhadas
-                      </th>
-                      {!isInterval && (
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Horas Extras
-                        </th>
-                      )}
-                      {!isInterval && (
-                        <>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                            Entrada Inicial
-                          </th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                            Saída Inicial
-                          </th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                            Entrada Final
-                          </th>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                            Saída Final
-                          </th>
-                        </>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredEmployees.map((employee) => {
-                      const { entradaInicial, saidaInicial, entradaFinal, saidaFinal } = getRegistrosEspecificos(employee.registrosPeriodo);
+          {/* Conteúdo das Tabs */}
+          {activeTab === 'registros' ? (
+            <div className="space-y-6">
 
-                      return (
-                        <tr key={employee.cpf} className="hover:bg-gray-50">
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {employee.nome}
-                          </td>
+              {/* Gráficos */}
+              {filteredEmployees.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap- mb-2">
+                  {showHorasPerFuncChart && (
+                    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <AlarmClockCheckIcon className="w-5 h-5" />
+                        Horas Trabalhadas por Funcionário
+                      </h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={dadosGraficoHoras}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="nome"
+                            angle={-45}
+                            textAnchor="end"
+                            height={60}
+                            fontSize={10}
+                          />
+                          <YAxis tickFormatter={horasTickFormatter} fontSize={12} />
+                          <Tooltip
+                            formatter={horasTooltipFormatter}
+                            labelFormatter={(label) => `Funcionário: ${label}`}
+                          />
+                          <Bar dataKey="horas" fill="#8884d8" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  {showTotalHorasChart && (
+                    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <ChartBarIcon className="w-5 h-5" />
+                        Total de Horas Trabalhadas
+                      </h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={dadosGraficoTotalHoras}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" fontSize={12} />
+                          <YAxis tickFormatter={horasTickFormatter} fontSize={12} />
+                          <Tooltip formatter={horasTooltipFormatter} />
+                          <Bar dataKey="horas">
+                            {dadosGraficoTotalHoras.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Tabela de Funcionários */}
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+
+
+                {/* Filtros */}
+                <div className="bg-white rounded-xl sm:p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                      <input
+                        type="date"
+                        value={filters.dataInicio}
+                        onChange={(e) => setFilters({ ...filters, dataInicio: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+                      <input
+                        type="date"
+                        value={filters.dataFim}
+                        onChange={(e) => setFilters({ ...filters, dataFim: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">CPF</label>
+                      <input
+                        type="text"
+                        placeholder="Filtrar por CPF"
+                        value={filters.cpf}
+                        onChange={(e) => setFilters({ ...filters, cpf: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Nome</label>
+                      <input
+                        type="text"
+                        placeholder="Filtrar por nome"
+                        value={filters.nome}
+                        onChange={(e) => setFilters({ ...filters, nome: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 sm:p-6 border-b border-gray-200 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <UsersIcon className="w-6 h-6 text-black" />
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
+                      Funcionários
+                    </h2>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg flex items-center gap-2 text-sm"
+                  >
+                    <ArrowPathIcon className="w-5 h-5" />
+                    Atualizar
+                  </button>
+                </div>
+
+                {filteredEmployees.length === 0 ? (
+                  <div className="p-6 sm:p-8 text-center text-gray-500">
+                    <DocumentTextIcon className="w-12 h-12 mx-auto mb-4" />
+                    <p className="text-base sm:text-lg">Nenhum funcionário encontrado</p>
+                    <p className="text-xs sm:text-sm mt-2">Ajuste os filtros para ver os dados</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Nome
+                          </th>
                           {!isInterval && (
-                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(employee.statusAtual)}`}>
-                                {getStatusText(employee.statusAtual)}
-                              </span>
-                            </td>
+                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
                           )}
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {employee.horasTrabalhadasPeriodo}
-                          </td>
+                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Horas Trabalhadas
+                          </th>
                           {!isInterval && (
-                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <div className={`${employee.horasTrabalhadasMinutos > (8 * 60 + 48) ? 'text-red-600' : 'text-gray-400'}`}>
-                                {calcularHorasExtras(employee.horasTrabalhadasMinutos)}
-                              </div>
-                            </td>
+                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Horas Extras
+                            </th>
                           )}
                           {!isInterval && (
                             <>
-
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                {entradaInicial ? formatarHora(entradaInicial.timestamp) : '-'}
-                              </td>
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                {saidaInicial ? formatarHora(saidaInicial.timestamp) : '-'}
-                              </td>
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                {entradaFinal ? formatarHora(entradaFinal.timestamp) : '-'}
-                              </td>
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                {saidaFinal ? formatarHora(saidaFinal.timestamp) : '-'}
-                              </td>
+                              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                                Entrada Inicial
+                              </th>
+                              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                                Saída Inicial
+                              </th>
+                              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                                Entrada Final
+                              </th>
+                              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                                Saída Final
+                              </th>
                             </>
                           )}
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredEmployees.map((employee) => {
+                          const { entradaInicial, saidaInicial, entradaFinal, saidaFinal } = getRegistrosEspecificos(employee.registrosPeriodo);
+
+                          return (
+                            <tr key={employee.cpf} className="hover:bg-gray-50">
+                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {employee.nome}
+                              </td>
+                              {!isInterval && (
+                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(employee.statusAtual)}`}>
+                                    {getStatusText(employee.statusAtual)}
+                                  </span>
+                                </td>
+                              )}
+                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {employee.horasTrabalhadasPeriodo}
+                              </td>
+                              {!isInterval && (
+                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                  <div className={`${employee.horasTrabalhadasMinutos > (8 * 60 + 48) ? 'text-red-600' : 'text-gray-400'}`}>
+                                    {calcularHorasExtras(employee.horasTrabalhadasMinutos)}
+                                  </div>
+                                </td>
+                              )}
+                              {!isInterval && (
+                                <>
+                                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    {entradaInicial ? formatarHora(entradaInicial.timestamp) : '-'}
+                                  </td>
+                                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    {saidaInicial ? formatarHora(saidaInicial.timestamp) : '-'}
+                                  </td>
+                                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    {entradaFinal ? formatarHora(entradaFinal.timestamp) : '-'}
+                                  </td>
+                                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    {saidaFinal ? formatarHora(saidaFinal.timestamp) : '-'}
+                                  </td>
+                                </>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <BancoHoras />
+          )}
 
           {/* Modal de Relatório */}
           <ReportGeneratorModal

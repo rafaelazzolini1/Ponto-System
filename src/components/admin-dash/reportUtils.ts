@@ -34,9 +34,11 @@ export interface EmployeeData {
 export interface DailyWorkData {
   data: string;
   registros: RegistroPonto[];
+  registrosAjustados?: RegistroPonto[]; // Registros com última saída ajustada
   horasTrabalhadas: number;
   horasExtras: number;
   completo: boolean;
+  horasTrabalhadasReais?: number; // Adicionar campo para horas reais
 }
 
 export interface MonthlyReportData {
@@ -56,15 +58,18 @@ export interface MonthlyReportData {
   };
 }
 
-// Constantes
-export const JORNADA_NORMAL_MINUTOS = 8 * 60 + 48;
-export const JORNADA_NORMAL_HORAS = JORNADA_NORMAL_MINUTOS / 60;
-export const MAX_OVERTIME_HORAS = 2;
-export const MAX_WORKED_MINUTOS = 10 * 60 + 48;
-export const MAX_WORKED_HORAS = MAX_WORKED_MINUTOS / 60;
+// Constantes ATUALIZADAS
+export const JORNADA_NORMAL_MINUTOS = 8 * 60 + 48; // 528 minutos (8h48min) - jornada base
+export const JORNADA_NORMAL_HORAS = JORNADA_NORMAL_MINUTOS / 60; // 8.8 horas
+
+export const INICIO_HORA_EXTRA_MINUTOS = 10 * 60 + 48; // 648 minutos (10h48min) - quando começa hora extra
+export const INICIO_HORA_EXTRA_HORAS = INICIO_HORA_EXTRA_MINUTOS / 60; // 10.8 horas
+
+export const MAX_OVERTIME_HORAS = 2; // Máximo de 2 horas extras
+export const MAX_WORKED_MINUTOS = INICIO_HORA_EXTRA_MINUTOS + (MAX_OVERTIME_HORAS * 60); // 10h48min + 2h = 12h48min
+export const MAX_WORKED_HORAS = MAX_WORKED_MINUTOS / 60; // 12.8 horas
+
 export const NORMAL_END_TIME = '15:48';
-export const OVERTIME_START_MINUTOS = JORNADA_NORMAL_MINUTOS + 120;
-export const OVERTIME_START_HORAS = OVERTIME_START_MINUTOS / 60;
 
 /**
  * Busca todos os funcionários
@@ -103,7 +108,7 @@ export async function getEmployeeData(cpf: string): Promise<EmployeeData> {
 }
 
 /**
- * Calcula as horas trabalhadas em um dia
+ * Calcula as horas trabalhadas em um dia (REAIS)
  */
 export function calculateDailyHours(registros: RegistroPonto[]): number {
   if (registros.length < 2) return 0;
@@ -120,10 +125,128 @@ export function calculateDailyHours(registros: RegistroPonto[]): number {
 }
 
 /**
- * Calcula as horas extras de um dia
+ * Calcula as horas extras de um dia (NOVA LÓGICA)
+ * Horas extras = tempo trabalhado acima de 10h48min, limitado a 2h
  */
-export function calculateDailyOvertime(horasTrabalhadas: number): number {
-  return Math.max(0, horasTrabalhadas - OVERTIME_START_HORAS);
+export function calculateDailyOvertime(horasTrabalhadasReais: number): number {
+  if (horasTrabalhadasReais <= INICIO_HORA_EXTRA_HORAS) {
+    return 0; // Não tem hora extra se trabalhou 10h48min ou menos
+  }
+  
+  const horasExtras = horasTrabalhadasReais - INICIO_HORA_EXTRA_HORAS;
+  return Math.min(horasExtras, MAX_OVERTIME_HORAS); // Limita a 2 horas extras
+}
+
+/**
+ * Calcula as horas para exibição no relatório
+ * Remove as 2 horas "ocultas" (entre 8h48min e 10h48min)
+ */
+export function calculateDisplayHours(horasTrabalhadasReais: number): number {
+  if (horasTrabalhadasReais <= INICIO_HORA_EXTRA_HORAS) {
+    // Se trabalhou até 10h48min, exibe como está (mas limitado a 8h48min)
+    return Math.min(horasTrabalhadasReais, JORNADA_NORMAL_HORAS);
+  }
+  
+  // Se trabalhou mais de 10h48min:
+  // - Remove as 2 horas "ocultas" (diferença entre 8h48min e 10h48min)
+  // - Adiciona as horas extras (limitadas a 2h)
+  const horasExtras = calculateDailyOvertime(horasTrabalhadasReais);
+  return JORNADA_NORMAL_HORAS + horasExtras;
+}
+
+/**
+ * Ajusta o horário da última saída para refletir as horas trabalhadas do relatório
+ * Mantém os horários reais das entradas e saídas intermediárias
+ */
+export function adjustLastExitTime(registros: RegistroPonto[], horasTrabalhadasDisplay: number): RegistroPonto[] {
+  console.log('🔧 adjustLastExitTime chamada!');
+  console.log('Registros recebidos:', registros.length);
+  console.log('Horas display:', horasTrabalhadasDisplay);
+  
+  if (registros.length < 2) {
+    console.log('⚠️ Menos de 2 registros, retornando original');
+    return registros;
+  }
+  
+  // Encontra o índice da última saída
+  let lastSaidaIndex = -1;
+  for (let i = registros.length - 1; i >= 0; i--) {
+    if (registros[i].tipo === 'saida') {
+      lastSaidaIndex = i;
+      break;
+    }
+  }
+  
+  console.log('Índice última saída:', lastSaidaIndex);
+  
+  if (lastSaidaIndex === -1) {
+    console.log('⚠️ Nenhuma saída encontrada');
+    return registros;
+  }
+  
+  // Encontra a última entrada correspondente
+  const lastEntradaIndex = lastSaidaIndex - 1;
+  if (lastEntradaIndex < 0 || registros[lastEntradaIndex].tipo !== 'entrada') {
+    console.log('⚠️ Entrada anterior não encontrada');
+    return registros;
+  }
+  
+  console.log('Índice última entrada:', lastEntradaIndex);
+  
+  // Calcula o total de minutos trabalhados até a penúltima saída
+  let minutosAnteriores = 0;
+  for (let i = 0; i < lastEntradaIndex; i += 2) {
+    const entrada = registros[i];
+    const saida = registros[i + 1];
+    if (entrada?.tipo === 'entrada' && saida?.tipo === 'saida') {
+      const diferenca = (saida.timestamp.toDate().getTime() - entrada.timestamp.toDate().getTime()) / (1000 * 60);
+      minutosAnteriores += diferenca;
+      console.log(`Período ${i/2 + 1}: ${diferenca.toFixed(0)} minutos`);
+    }
+  }
+  
+  // Calcula quantos minutos faltam para completar as horas do relatório
+  const minutosDisplayTotal = horasTrabalhadasDisplay * 60;
+  const minutosFaltantes = minutosDisplayTotal - minutosAnteriores;
+  
+  // Debug logs
+  console.log('=== CÁLCULOS ===');
+  console.log('Horas Display:', horasTrabalhadasDisplay);
+  console.log('Minutos Display Total:', minutosDisplayTotal);
+  console.log('Minutos Anteriores:', minutosAnteriores);
+  console.log('Minutos Faltantes:', minutosFaltantes);
+  console.log('Última Entrada:', registros[lastEntradaIndex].timestamp.toDate().toLocaleTimeString('pt-BR'));
+  console.log('Saída Original:', registros[lastSaidaIndex].timestamp.toDate().toLocaleTimeString('pt-BR'));
+  
+  // Se os minutos faltantes forem negativos ou zero, mantém o horário original
+  if (minutosFaltantes <= 0) {
+    console.log('⚠️ Minutos faltantes <= 0, mantendo original');
+    return registros;
+  }
+  
+  // Cria cópia profunda dos registros
+  const registrosAjustados = registros.map(r => ({
+    tipo: r.tipo,
+    timestamp: r.timestamp,
+    data: r.data
+  }));
+  
+  // Calcula o novo horário de saída baseado na última entrada + minutos faltantes
+  const lastEntrada = registros[lastEntradaIndex];
+  const novoHorarioSaida = new Date(lastEntrada.timestamp.toDate().getTime() + (minutosFaltantes * 60 * 1000));
+  
+  console.log('✅ Nova Saída Calculada:', novoHorarioSaida.toLocaleTimeString('pt-BR'));
+  
+  // Atualiza a última saída com o novo horário
+  registrosAjustados[lastSaidaIndex] = {
+    tipo: 'saida',
+    timestamp: Timestamp.fromDate(novoHorarioSaida),
+    data: registros[lastSaidaIndex].data
+  };
+  
+  console.log('✅ Ajuste concluído! Retornando', registrosAjustados.length, 'registros ajustados');
+  
+  return registrosAjustados;
 }
 
 /**
@@ -164,7 +287,7 @@ export function groupRegistrosByDay(registrosPonto: { [data: string]: RegistroPo
 }
 
 /**
- * Gera dados completos do relatório mensal
+ * Gera dados completos do relatório mensal (LÓGICA ATUALIZADA)
  */
 export async function generateMonthlyReport(funcionarioCpf: string, mes: number, ano: number): Promise<MonthlyReportData> {
   try {
@@ -182,22 +305,34 @@ export async function generateMonthlyReport(funcionarioCpf: string, mes: number,
     let diasTrabalhados = 0;
 
     registrosPorDia.forEach((registros, data) => {
-      const horasTrabalhadasOriginal = calculateDailyHours(registros);
-      const horasExtrasOriginal = calculateDailyOvertime(horasTrabalhadasOriginal);
-      const horasTrabalhadasCappada = Math.min(horasTrabalhadasOriginal, JORNADA_NORMAL_HORAS + 1);
-      const horasExtrasCappada = horasTrabalhadasCappada > JORNADA_NORMAL_HORAS ? 1 : 0;
+      const horasTrabalhadasReais = calculateDailyHours(registros);
+      const horasExtras = calculateDailyOvertime(horasTrabalhadasReais);
+      const horasTrabalhadasDisplay = calculateDisplayHours(horasTrabalhadasReais);
       const completo = isDayComplete(registros);
+      
+      console.log('📊 Processando dia:', data);
+      console.log('Horas Reais:', horasTrabalhadasReais);
+      console.log('Horas Display:', horasTrabalhadasDisplay);
+      console.log('Registros originais:', registros.length);
+      
+      // Ajusta a última saída para refletir as horas do relatório
+      const registrosAjustados = adjustLastExitTime(registros, horasTrabalhadasDisplay);
+      
+      console.log('Registros ajustados:', registrosAjustados.length);
+      console.log('---');
 
       if (completo) diasTrabalhados++;
-      totalHoras += horasTrabalhadasCappada;
-      totalHorasExtras += horasExtrasCappada;
+      totalHoras += horasTrabalhadasDisplay;
+      totalHorasExtras += horasExtras;
 
       dailyData.push({
         data,
-        registros,
-        horasTrabalhadas: horasTrabalhadasCappada,
-        horasExtras: horasExtrasCappada,
-        completo
+        registros, // Registros originais (reais)
+        registrosAjustados, // Registros com última saída ajustada para o relatório
+        horasTrabalhadas: horasTrabalhadasDisplay, // Horas para exibição no relatório
+        horasExtras: horasExtras,
+        completo,
+        horasTrabalhadasReais: horasTrabalhadasReais // Armazena horas reais para referência
       });
     });
 
@@ -236,6 +371,16 @@ export async function generateMonthlyReport(funcionarioCpf: string, mes: number,
 }
 
 /**
+ * Formata timestamp para horário HH:MM
+ */
+export function formatTimestamp(timestamp: Timestamp): string {
+  const date = timestamp.toDate();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+/**
  * Formata horas para exibição
  */
 export function formatHours(horas: number): string {
@@ -250,7 +395,7 @@ export function formatHours(horas: number): string {
  */
 export function formatDate(dateString: string): string {
   const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, day); // month é 0-based
+  const date = new Date(year, month - 1, day);
   return date.toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
