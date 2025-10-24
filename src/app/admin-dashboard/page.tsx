@@ -417,31 +417,31 @@ export default function AdminDashboard() {
 
   return (
     <ProtectedRoute requiredRole="admin">
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-4 sm:p-6">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="flex flex-col gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
                   Dashboard Administrativa
                 </h1>
-                <p className="text-gray-600 text-sm sm:text-base">
+                <p className="text-gray-600 text-xs sm:text-sm">
                   Bem-vindo, {user?.nome}
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <button
                   onClick={() => setShowReportModal(true)}
-                  className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
+                  className="bg-gradient-to-r from-green-600 to-green-700 text-white px-3 sm:px-4 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
                 >
-                  <DocumentTextIcon className="w-5 h-5" />
-                  Gerar Relatório PDF
+                  <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="whitespace-nowrap">Gerar Relatório PDF</span>
                 </button>
 
                 <button
                   onClick={logout}
-                  className="bg-gradient-to-r from-gray-500 to-gray-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg text-sm sm:text-base w-full sm:w-auto"
+                  className="bg-gradient-to-r from-gray-500 to-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg text-xs sm:text-sm w-full sm:w-auto"
                 >
                   Sair
                 </button>
@@ -451,52 +451,56 @@ export default function AdminDashboard() {
 
           {/* Mensagem de Erro */}
           {error && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center gap-2">
-              <ExclamationCircleIcon className="w-6 h-6" />
-              <span className="text-sm">{error}</span>
+            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-start gap-2">
+              <ExclamationCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" />
+              <span className="text-xs sm:text-sm">{error}</span>
             </div>
           )}
 
           {/* Tabs */}
-          <div className="bg-white rounded-xl shadow-lg mb-6">
+          <div className="bg-white rounded-xl shadow-lg mb-4 sm:mb-6 overflow-hidden">
             <div className="flex border-b border-gray-200">
               <button
                 onClick={() => setActiveTab('registros')}
-                className={`flex-1 px-6 py-4 text-sm sm:text-base font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${activeTab === 'registros'
-                  ? 'border-b-2 border-gray-600 text-gray-800 bg-gray-100'
-                  : 'text-gray-800 hover:text-gray-800 hover:bg-gray-200'
-                  }`}
+                className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base font-medium transition-colors duration-200 flex items-center justify-center gap-1 sm:gap-2 ${
+                  activeTab === 'registros'
+                    ? 'border-b-2 border-gray-600 text-gray-800 bg-gray-100'
+                    : 'text-gray-800 hover:text-gray-800 hover:bg-gray-200'
+                }`}
               >
-                <ClipboardDocumentListIcon className="w-5 h-5" />
-                Registros de Ponto
+                <ClipboardDocumentListIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Registros de Ponto</span>
+                <span className="sm:hidden">Registros de Ponto</span>
               </button>
               <button
                 onClick={() => setActiveTab('banco-horas')}
-                className={`flex-1 px-6 py-4 text-sm sm:text-base font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${activeTab === 'banco-horas'
-                  ? 'border-b-2 border-gray-600 text-gray-800 bg-gray-100'
-                  : 'text-gray-800 hover:text-gray-800 hover:bg-gray-200'
-                  }`}
+                className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm lg:text-base font-medium transition-colors duration-200 flex items-center justify-center gap-1 sm:gap-2 ${
+                  activeTab === 'banco-horas'
+                    ? 'border-b-2 border-gray-600 text-gray-800 bg-gray-100'
+                    : 'text-gray-800 hover:text-gray-800 hover:bg-gray-200'
+                }`}
               >
-                <BanknotesIcon className="w-5 h-5" />
-                Banco de Horas
+                <BanknotesIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Banco de Horas</span>
+                <span className="sm:hidden">Banco de Horas</span>
               </button>
             </div>
           </div>
 
           {/* Conteúdo das Tabs */}
           {activeTab === 'registros' ? (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
 
               {/* Gráficos */}
               {filteredEmployees.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap- mb-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-2">
                   {showHorasPerFuncChart && (
                     <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <AlarmClockCheckIcon className="w-5 h-5" />
-                        Horas Trabalhadas por Funcionário
+                      <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                        <AlarmClockCheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="text-xs sm:text-sm lg:text-base">Horas por Funcionário</span>
                       </h3>
-                      <ResponsiveContainer width="100%" height={250}>
+                      <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={dadosGraficoHoras}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis
@@ -504,9 +508,10 @@ export default function AdminDashboard() {
                             angle={-45}
                             textAnchor="end"
                             height={60}
-                            fontSize={10}
+                            fontSize={9}
+                            interval={0}
                           />
-                          <YAxis tickFormatter={horasTickFormatter} fontSize={12} />
+                          <YAxis tickFormatter={horasTickFormatter} fontSize={10} />
                           <Tooltip
                             formatter={horasTooltipFormatter}
                             labelFormatter={(label) => `Funcionário: ${label}`}
@@ -518,15 +523,15 @@ export default function AdminDashboard() {
                   )}
                   {showTotalHorasChart && (
                     <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <ChartBarIcon className="w-5 h-5" />
-                        Total de Horas Trabalhadas
+                      <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                        <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="text-xs sm:text-sm lg:text-base">Total de Horas</span>
                       </h3>
-                      <ResponsiveContainer width="100%" height={250}>
+                      <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={dadosGraficoTotalHoras}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" fontSize={12} />
-                          <YAxis tickFormatter={horasTickFormatter} fontSize={12} />
+                          <XAxis dataKey="name" fontSize={10} />
+                          <YAxis tickFormatter={horasTickFormatter} fontSize={10} />
                           <Tooltip formatter={horasTooltipFormatter} />
                           <Bar dataKey="horas">
                             {dadosGraficoTotalHoras.map((entry, index) => (
@@ -539,58 +544,57 @@ export default function AdminDashboard() {
                   )}
                 </div>
               )}
+
               {/* Tabela de Funcionários */}
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-
-
                 {/* Filtros */}
-                <div className="bg-white rounded-xl sm:p-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-3 sm:p-4 lg:p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Data Início</label>
                       <input
                         type="date"
                         value={filters.dataInicio}
                         onChange={(e) => setFilters({ ...filters, dataInicio: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-xs sm:text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Data Fim</label>
                       <input
                         type="date"
                         value={filters.dataFim}
                         onChange={(e) => setFilters({ ...filters, dataFim: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-xs sm:text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">CPF</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">CPF</label>
                       <input
                         type="text"
                         placeholder="Filtrar por CPF"
                         value={filters.cpf}
                         onChange={(e) => setFilters({ ...filters, cpf: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-xs sm:text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Nome</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Nome</label>
                       <input
                         type="text"
                         placeholder="Filtrar por nome"
                         value={filters.nome}
                         onChange={(e) => setFilters({ ...filters, nome: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                        className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-xs sm:text-sm"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 sm:p-6 border-b border-gray-200 flex justify-between items-center">
+                <div className="p-3 sm:p-4 lg:p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div className="flex items-center gap-2">
-                    <UsersIcon className="w-6 h-6 text-black" />
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
+                    <UsersIcon className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
+                    <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800">
                       Funcionários
                     </h2>
                   </div>
@@ -598,106 +602,181 @@ export default function AdminDashboard() {
                   <button
                     type="button"
                     onClick={handleRefresh}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg flex items-center gap-2 text-sm"
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg flex items-center gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center"
                   >
-                    <ArrowPathIcon className="w-5 h-5" />
-                    Atualizar
+                    <ArrowPathIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Atualizar</span>
                   </button>
                 </div>
 
                 {filteredEmployees.length === 0 ? (
                   <div className="p-6 sm:p-8 text-center text-gray-500">
-                    <DocumentTextIcon className="w-12 h-12 mx-auto mb-4" />
-                    <p className="text-base sm:text-lg">Nenhum funcionário encontrado</p>
+                    <DocumentTextIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-4" />
+                    <p className="text-sm sm:text-base lg:text-lg">Nenhum funcionário encontrado</p>
                     <p className="text-xs sm:text-sm mt-2">Ajuste os filtros para ver os dados</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Nome
-                          </th>
-                          {!isInterval && (
-                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
+                  <>
+                    {/* Vista Desktop - Tabela */}
+                    <div className="hidden lg:block overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Nome
                             </th>
-                          )}
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Horas Trabalhadas
-                          </th>
-                          {!isInterval && (
-                            <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Horas Extras
+                            {!isInterval && (
+                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                              </th>
+                            )}
+                            <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Horas Trabalhadas
                             </th>
-                          )}
-                          {!isInterval && (
-                            <>
-                              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                                Entrada Inicial
+                            {!isInterval && (
+                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Horas Extras
                               </th>
-                              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                                Saída Inicial
-                              </th>
-                              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                                Entrada Final
-                              </th>
-                              <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                                Saída Final
-                              </th>
-                            </>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredEmployees.map((employee) => {
-                          const { entradaInicial, saidaInicial, entradaFinal, saidaFinal } = getRegistrosEspecificos(employee.registrosPeriodo);
+                            )}
+                            {!isInterval && (
+                              <>
+                                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Entrada Inicial
+                                </th>
+                                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Saída Inicial
+                                </th>
+                                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Entrada Final
+                                </th>
+                                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Saída Final
+                                </th>
+                              </>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {filteredEmployees.map((employee) => {
+                            const { entradaInicial, saidaInicial, entradaFinal, saidaFinal } = getRegistrosEspecificos(employee.registrosPeriodo);
 
-                          return (
-                            <tr key={employee.cpf} className="hover:bg-gray-50">
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            return (
+                              <tr key={employee.cpf} className="hover:bg-gray-50">
+                                <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {employee.nome}
+                                </td>
+                                {!isInterval && (
+                                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(employee.statusAtual)}`}>
+                                      {getStatusText(employee.statusAtual)}
+                                    </span>
+                                  </td>
+                                )}
+                                <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {employee.horasTrabalhadasPeriodo}
+                                </td>
+                                {!isInterval && (
+                                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div className={`${employee.horasTrabalhadasMinutos > (8 * 60 + 48) ? 'text-red-600' : 'text-gray-400'}`}>
+                                      {calcularHorasExtras(employee.horasTrabalhadasMinutos)}
+                                    </div>
+                                  </td>
+                                )}
+                                {!isInterval && (
+                                  <>
+                                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {entradaInicial ? formatarHora(entradaInicial.timestamp) : '-'}
+                                    </td>
+                                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {saidaInicial ? formatarHora(saidaInicial.timestamp) : '-'}
+                                    </td>
+                                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {entradaFinal ? formatarHora(entradaFinal.timestamp) : '-'}
+                                    </td>
+                                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {saidaFinal ? formatarHora(saidaFinal.timestamp) : '-'}
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Vista Mobile - Cards */}
+                    <div className="lg:hidden divide-y divide-gray-200">
+                      {filteredEmployees.map((employee) => {
+                        const { entradaInicial, saidaInicial, entradaFinal, saidaFinal } = getRegistrosEspecificos(employee.registrosPeriodo);
+
+                        return (
+                          <div key={employee.cpf} className="p-4 hover:bg-gray-50">
+                            {/* Nome e Status */}
+                            <div className="flex justify-between items-start mb-3">
+                              <h3 className="font-semibold text-gray-900 text-sm">
                                 {employee.nome}
-                              </td>
+                              </h3>
                               {!isInterval && (
-                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(employee.statusAtual)}`}>
-                                    {getStatusText(employee.statusAtual)}
-                                  </span>
-                                </td>
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(employee.statusAtual)}`}>
+                                  {getStatusText(employee.statusAtual)}
+                                </span>
                               )}
-                              <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {employee.horasTrabalhadasPeriodo}
-                              </td>
+                            </div>
+
+                            {/* Informações principais */}
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Horas Trabalhadas:</span>
+                                <span className="font-medium text-gray-900">{employee.horasTrabalhadasPeriodo}</span>
+                              </div>
+                              
                               {!isInterval && (
-                                <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                  <div className={`${employee.horasTrabalhadasMinutos > (8 * 60 + 48) ? 'text-red-600' : 'text-gray-400'}`}>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Horas Extras:</span>
+                                  <span className={`font-medium ${employee.horasTrabalhadasMinutos > (8 * 60 + 48) ? 'text-red-600' : 'text-gray-400'}`}>
                                     {calcularHorasExtras(employee.horasTrabalhadasMinutos)}
-                                  </div>
-                                </td>
+                                  </span>
+                                </div>
                               )}
+
+                              {/* Horários - apenas para dia único */}
                               {!isInterval && (
-                                <>
-                                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    {entradaInicial ? formatarHora(entradaInicial.timestamp) : '-'}
-                                  </td>
-                                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    {saidaInicial ? formatarHora(saidaInicial.timestamp) : '-'}
-                                  </td>
-                                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    {entradaFinal ? formatarHora(entradaFinal.timestamp) : '-'}
-                                  </td>
-                                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    {saidaFinal ? formatarHora(saidaFinal.timestamp) : '-'}
-                                  </td>
-                                </>
+                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <span className="text-gray-600 block mb-1">Entrada Inicial:</span>
+                                      <span className="font-medium text-gray-900">
+                                        {entradaInicial ? formatarHora(entradaInicial.timestamp) : '-'}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600 block mb-1">Saída Inicial:</span>
+                                      <span className="font-medium text-gray-900">
+                                        {saidaInicial ? formatarHora(saidaInicial.timestamp) : '-'}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600 block mb-1">Entrada Final:</span>
+                                      <span className="font-medium text-gray-900">
+                                        {entradaFinal ? formatarHora(entradaFinal.timestamp) : '-'}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-600 block mb-1">Saída Final:</span>
+                                      <span className="font-medium text-gray-900">
+                                        {saidaFinal ? formatarHora(saidaFinal.timestamp) : '-'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
                               )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             </div>

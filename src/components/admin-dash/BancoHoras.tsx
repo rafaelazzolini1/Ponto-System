@@ -166,151 +166,195 @@ export default function BancoHoras() {
   });
 
   return (
-
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Tabela Banco de Horas */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-
         {/* Filtros */}
-        <div className="bg-white rounded-xl sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-3 sm:p-4 lg:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Início</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Data Início</label>
               <input
                 type="date"
                 value={filters.dataInicio}
                 onChange={(e) => setFilters({ ...filters, dataInicio: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-xs sm:text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Data Fim</label>
               <input
                 type="date"
                 value={filters.dataFim}
                 onChange={(e) => setFilters({ ...filters, dataFim: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-xs sm:text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                <MagnifyingGlassIcon className="w-4 h-4 inline mr-1" />
-                Buscar por CPF
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                <MagnifyingGlassIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                CPF
               </label>
               <input
                 type="text"
                 placeholder="Digite o CPF"
                 value={filters.cpf}
                 onChange={(e) => setFilters({ ...filters, cpf: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-xs sm:text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                <MagnifyingGlassIcon className="w-4 h-4 inline mr-1" />
-                Buscar por Nome
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                <MagnifyingGlassIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                Nome
               </label>
               <input
                 type="text"
                 placeholder="Digite o nome"
                 value={filters.nome}
                 onChange={(e) => setFilters({ ...filters, nome: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                className="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 text-xs sm:text-sm"
               />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-
-          <div className="p-4 sm:p-6 border-b border-gray-200 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <BanknotesIcon className="w-6 h-6 text-black" />
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
-                Banco de Horas
-              </h2>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={loading}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg flex items-center gap-2 text-sm"
-            >
-              <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </button>
+        {/* Header */}
+        <div className="p-3 sm:p-4 lg:p-6 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <BanknotesIcon className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
+            <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800">
+              Banco de Horas
+            </h2>
           </div>
 
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg flex items-center gap-2 text-xs sm:text-sm w-full sm:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ArrowPathIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Atualizar</span>
+          </button>
         </div>
 
+        {/* Conteúdo */}
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Carregando dados...</p>
+          <div className="p-6 sm:p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-b-2 border-gray-500 mx-auto mb-4"></div>
+            <p className="text-gray-600 text-sm sm:text-base">Carregando dados...</p>
           </div>
         ) : filteredBancoHoras.length === 0 ? (
           <div className="p-6 sm:p-8 text-center text-gray-500">
-            <BanknotesIcon className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-base sm:text-lg">Nenhum funcionário encontrado</p>
+            <BanknotesIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-4 text-gray-400" />
+            <p className="text-sm sm:text-base lg:text-lg">Nenhum funcionário encontrado</p>
             <p className="text-xs sm:text-sm mt-2">Ajuste os filtros para ver os dados</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nome
-                  </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    CPF
-                  </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Saldo de Horas
-                  </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredBancoHoras.map((emp) => (
-                  <tr key={emp.cpf} className="hover:bg-gray-50">
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {emp.nome}
-                    </td>
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {emp.cpf}
-                    </td>
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-bold">
-                      <span className={
+          <>
+            {/* Vista Desktop - Tabela */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Nome
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      CPF
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Saldo de Horas
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredBancoHoras.map((emp) => (
+                    <tr key={emp.cpf} className="hover:bg-gray-50">
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {emp.nome}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {emp.cpf}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-bold">
+                        <span className={
+                          emp.tipo === 'credito'
+                            ? 'text-green-600'
+                            : emp.tipo === 'debito'
+                              ? 'text-red-600'
+                              : 'text-gray-600'
+                        }>
+                          {emp.saldoFormatado}
+                        </span>
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          emp.tipo === 'credito'
+                            ? 'bg-green-100 text-green-800'
+                            : emp.tipo === 'debito'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {emp.tipo === 'credito' ? 'Crédito' : emp.tipo === 'debito' ? 'Débito' : 'Neutro'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Vista Mobile - Cards */}
+            <div className="md:hidden divide-y divide-gray-200">
+              {filteredBancoHoras.map((emp) => (
+                <div key={emp.cpf} className="p-4 hover:bg-gray-50">
+                  {/* Nome e Status */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-sm truncate">
+                        {emp.nome}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        CPF: {emp.cpf}
+                      </p>
+                    </div>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ml-2 flex-shrink-0 ${
+                      emp.tipo === 'credito'
+                        ? 'bg-green-100 text-green-800'
+                        : emp.tipo === 'debito'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {emp.tipo === 'credito' ? 'Crédito' : emp.tipo === 'debito' ? 'Débito' : 'Neutro'}
+                    </span>
+                  </div>
+
+                  {/* Saldo */}
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">Saldo de Horas:</span>
+                      <span className={`text-lg font-bold ${
                         emp.tipo === 'credito'
                           ? 'text-green-600'
                           : emp.tipo === 'debito'
                             ? 'text-red-600'
                             : 'text-gray-600'
-                      }>
+                      }`}>
                         {emp.saldoFormatado}
                       </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${emp.tipo === 'credito'
-                        ? 'bg-green-100 text-green-800'
-                        : emp.tipo === 'debito'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-800'
-                        }`}>
-                        {emp.tipo === 'credito' ? 'Crédito' : emp.tipo === 'debito' ? 'Débito' : 'Neutro'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
-    </div >
+    </div>
   );
 }
