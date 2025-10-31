@@ -272,7 +272,7 @@ export function generatePDFReport(options: PDFReportOptions): void {
     }
   });
 
-  currentY = (doc as AutoTableDoc).lastAutoTable.finalY + 20;
+  currentY = (doc as AutoTableDoc).lastAutoTable.finalY + 15;
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
@@ -295,7 +295,7 @@ export function generatePDFReport(options: PDFReportOptions): void {
     doc.text(linha, margin, currentY + (index * 6));
   });
 
-  currentY += 40;
+  currentY += 30;
 
   // Assinaturas lado a lado
   const signatureWidth = 70;
