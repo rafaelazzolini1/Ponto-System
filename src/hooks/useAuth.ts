@@ -1,7 +1,9 @@
+// hooks/useAuth.ts
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import Cookies from 'js-cookie';
 
 export interface AuthUser {
@@ -18,7 +20,7 @@ export interface UseAuthReturn {
   error: string | null;
   isEmployee: boolean;
   isAdmin: boolean;
-  logout: () => void;
+  logout: () => Promise<void>;
   redirectBasedOnRole: () => void;
 }
 
@@ -28,62 +30,87 @@ export const useAuth = (): UseAuthReturn => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const loadUserData = async () => {
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
+    // ====== ESCUTAR MUDANÇAS NO FIREBASE AUTH ======
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const token = Cookies.get("firebaseToken");
-      const cpf = Cookies.get("cpf");
+      try {
+        if (firebaseUser) {
+          // Usuário autenticado no Firebase
+          const cpf = Cookies.get("cpf");
+          
+          if (!cpf) {
+            setError("CPF não encontrado nos cookies.");
+            setUser(null);
+            setLoading(false);
+            return;
+          }
 
-      if (!token || !cpf) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
+          // Buscar dados do usuário no Firestore
+          const userDoc = await getDoc(doc(db, "users", cpf));
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            
+            // Verificar se o campo role existe
+            if (!userData.role) {
+              setError("Usuário não possui role definida. Entre em contato com o administrador.");
+              setUser(null);
+              setLoading(false);
+              return;
+            }
 
-      // Buscar dados do usuário no Firestore
-      const userDoc = await getDoc(doc(db, "users", cpf));
+            const authUser: AuthUser = {
+              cpf: cpf,
+              nome: userData.nome,
+              role: userData.role,
+              email: userData.email,
+              departamento: userData.departamento
+            };
 
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        
-        // Verificar se o campo role existe
-        if (!userData.role) {
-          setError("Usuário não possui role definida. Entre em contato com o administrador.");
-          setLoading(false);
-          return;
+            setUser(authUser);
+            setError(null);
+          } else {
+            setError("Usuário não encontrado no sistema.");
+            setUser(null);
+          }
+        } else {
+          // Não há usuário autenticado
+          setUser(null);
+          setError(null);
         }
-
-        const authUser: AuthUser = {
-          cpf: cpf,
-          nome: userData.nome,
-          role: userData.role,
-          email: userData.email,
-          departamento: userData.departamento
-        };
-
-        setUser(authUser);
-      } else {
-        setError("Usuário não encontrado no sistema.");
+      } catch (err) {
+        console.error("Erro ao carregar dados do usuário:", err);
+        setError("Erro ao carregar dados do usuário.");
         setUser(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Erro ao carregar dados do usuário:", err);
-      setError("Erro ao carregar dados do usuário.");
+    });
+
+    // Cleanup: remover listener quando componente desmontar
+    return () => unsubscribe();
+  }, []);
+
+  // ====== LOGOUT ======
+  const logout = async () => {
+    try {
+      await auth.signOut();
+      Cookies.remove("firebaseToken");
+      Cookies.remove("tokenTimestamp");
+      Cookies.remove("cpf");
       setUser(null);
-    } finally {
-      setLoading(false);
+      setError(null);
+      router.push("/login");
+    } catch (err) {
+      console.error("Erro ao fazer logout:", err);
+      setError("Erro ao fazer logout.");
     }
   };
 
-  const logout = () => {
-    Cookies.remove("firebaseToken");
-    Cookies.remove("cpf");
-    setUser(null);
-    router.push("/login");
-  };
-
+  // ====== REDIRECIONAR BASEADO NA ROLE ======
   const redirectBasedOnRole = () => {
     if (!user) {
       router.push("/login");
@@ -96,12 +123,9 @@ export const useAuth = (): UseAuthReturn => {
       router.push("/admin-dashboard");
     } else {
       setError("Role de usuário inválida.");
+      router.push("/login");
     }
   };
-
-  useEffect(() => {
-    loadUserData();
-  }, []);
 
   return {
     user,
@@ -110,7 +134,6 @@ export const useAuth = (): UseAuthReturn => {
     isEmployee: user?.role === 'employee',
     isAdmin: user?.role === 'admin',
     logout,
-    redirectBasedOnRole
+    redirectBasedOnRole,
   };
 };
-

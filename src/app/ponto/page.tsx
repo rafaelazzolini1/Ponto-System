@@ -192,47 +192,6 @@ export default function PontoPageEmployee() {
                 <FaClock className="text-2xl text-black-600" />
                 Registrar Ponto
               </h2>
-              {/* 
-
-              Status Atual 
-              <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-gray-50 to-gray-100 border">
-                <h3 className="font-medium text-gray-700 mb-2">Status Atual:</h3>
-                {statusPonto.ultimoRegistro ? (
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className={`w-4 h-4 rounded-full animate-pulse ${statusPonto.ultimoRegistro.tipo === 'entrada'
-                      ? 'bg-green-500'
-                      : 'bg-red-500'
-                      }`}></div>
-                    <span className="text-sm text-gray-600">
-                      Última {statusPonto.ultimoRegistro.tipo} às{' '}
-                      <span className="font-mono font-semibold">
-                        {formatarHora(statusPonto.ultimoRegistro.timestamp)}
-                      </span>
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-4 h-4 rounded-full bg-gray-400"></div>
-                    <span className="text-sm text-gray-600">
-                      Nenhum registro hoje
-                    </span>
-                  </div>
-                )}
-                
-             Contador de Registros Restantes 
-              <div className="flex items-center gap-2">
-                <div className={`w-4 h-4 rounded-full ${statusPonto.limiteDiarioAtingido ? 'bg-red-500' : 'bg-blue-500'
-                  }`}></div>
-                <span className="text-sm text-gray-600">
-                  {statusPonto.limiteDiarioAtingido
-                    ? 'Limite diário atingido (4/4)'
-                    : `Registros restantes: ${statusPonto.registrosRestantes}/4`
-                  }
-                </span>
-              </div>
-
-            </div>
-            */}
 
               {/* Botão de Registro Único */}
               <div className="space-y-4 flex mb-10 flex-col">
@@ -294,7 +253,6 @@ export default function PontoPageEmployee() {
                         }`}
                     >
                       <div className="flex flex-col gap-2">
-                        {/* Linha superior: Ícone + Tipo + Hora (alinhado à direita no mobile) */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 flex-1">
                             {registro.tipo === 'entrada' ? (
@@ -311,7 +269,6 @@ export default function PontoPageEmployee() {
                           </div>
                         </div>
 
-                        {/* Linha inferior: Endereço + Data (alinhado à direita no mobile) */}
                         {registro.enderecoAproximado && (
                           <div className="flex justify-between items-start">
                             <div className="flex items-center gap-1 text-xs text-gray-600 flex-1">

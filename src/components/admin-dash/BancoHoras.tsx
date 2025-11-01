@@ -88,7 +88,7 @@ export default function BancoHoras() {
       return;
     }
 
-    const JORNADA_DIARIA_MINUTOS = 10 * 60 + 48; // 10:48 em minutos
+    const JORNADA_DIARIA_MINUTOS = 10 * 60 + 48;
 
     try {
       const usersQuery = query(

@@ -6,9 +6,6 @@ import {
   formatDate, 
   getMonthName, 
   formatTimestamp,
-  JORNADA_NORMAL_HORAS, 
-  INICIO_HORA_EXTRA_HORAS,
-  MAX_OVERTIME_HORAS
 } from '../admin-dash/reportUtils';
 
 export interface PDFReportOptions {

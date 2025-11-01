@@ -113,7 +113,7 @@ export default function HistoricoPonto({ cpf }: HistoricoPontoProps) {
           });
         }
         
-        setHistorico(estatisticas.reverse()); // Mais recente primeiro
+        setHistorico(estatisticas.reverse());
       }
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
@@ -220,7 +220,6 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
         {payload.map((entry, index) => {
           const key = entry?.dataKey ?? `value-${index}`;
           const value = entry?.value ?? '';
-          // se `entry.dataKey` for 'horas' adiciona 'h'
           const suffix = entry?.dataKey === 'horas' ? 'h' : '';
           return (
             <p key={index} style={{ color: entry?.color }}>

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Ponto App",
   icons: {
-    icon: "/favicon.ico",  // Caminho para sua imagem (ajuste se o nome for diferente)
+    icon: "/favicon.ico"
   },
 };
 

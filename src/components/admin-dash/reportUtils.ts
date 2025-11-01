@@ -34,11 +34,11 @@ export interface EmployeeData {
 export interface DailyWorkData {
   data: string;
   registros: RegistroPonto[];
-  registrosAjustados?: RegistroPonto[]; // Registros com última saída ajustada
+  registrosAjustados?: RegistroPonto[];
   horasTrabalhadas: number;
   horasExtras: number;
   completo: boolean;
-  horasTrabalhadasReais?: number; // Adicionar campo para horas reais
+  horasTrabalhadasReais?: number;
 }
 
 export interface MonthlyReportData {

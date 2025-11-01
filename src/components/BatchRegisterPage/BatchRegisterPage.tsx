@@ -21,7 +21,7 @@ interface User {
 
 interface BatchRegistro {
   tipo: 'entrada' | 'saida';
-  hora: string; // Formato HH:mm
+  hora: string;
 }
 
 export default function BatchRegisterPage() {
