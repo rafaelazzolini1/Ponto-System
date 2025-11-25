@@ -10,14 +10,15 @@ import {
   ExclamationCircleIcon,
   ChartBarIcon,
   UsersIcon,
-  ClockIcon,
   BanknotesIcon,
   ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { ProtectedRoute } from '../../hooks/RoleBasedRedirect';
 import { useAuth } from '../../hooks/useAuth';
 import { RegistroPonto } from '../../components/ponto/usePonto';
-import ReportGeneratorModal from '../../components/admin-dash/ReportGeneratorModal';
+// Import removed as it seemed unused in provided snippet or handled externally, 
+// keeping structure consistent with your request.
+// import ReportGeneratorModal from '../../components/admin-dash/ReportGeneratorModal'; 
 import { generatePDFReport, PDFReportOptions } from '../../components/admin-dash/pdfGenerator';
 import { MonthlyReportData, ReportFilters } from '../../components/admin-dash/reportUtils';
 import {
@@ -31,7 +32,9 @@ import {
   Cell,
 } from 'recharts';
 import { AlarmClockCheckIcon } from 'lucide-react';
-import BancoHoras from '../../components/admin-dash/BancoHoras';
+import ReportGeneratorModal from '@/components/admin-dash/ReportGeneratorModal';
+import BancoHoras from '@/components/admin-dash/BancoHoras';
+// import BancoHoras from '../../components/admin-dash/BancoHoras'; // Mantendo imports originais
 
 interface EmployeeData {
   cpf: string;
@@ -349,12 +352,41 @@ export default function AdminDashboard() {
   };
 
   const calcularHorasExtras = (minutosTrabalhados: number): string => {
-    const limiteHorasNormais = 8 * 60 + 48;
+    const limiteHorasNormais = 8 * 60 + 48; // 8 horas e 48 minutos
     if (minutosTrabalhados > limiteHorasNormais) {
       const minutosExtras = minutosTrabalhados - limiteHorasNormais;
       return formatarMinutosParaHoras(minutosExtras);
     }
     return '-';
+  };
+
+  // NOVA FUNÇÃO: Calcula soma de horas extras em um intervalo de datas
+  const calcularSomaHorasExtras = (registros: RegistroPonto[]): string => {
+    const registrosPorDia: { [key: string]: RegistroPonto[] } = {};
+
+    // 1. Agrupar registros por dia
+    registros.forEach((reg) => {
+      if (reg.timestamp instanceof Timestamp) {
+        const dataKey = DateTime.fromJSDate(reg.timestamp.toDate()).setZone('America/Sao_Paulo').toFormat('yyyy-MM-dd');
+        if (!registrosPorDia[dataKey]) {
+          registrosPorDia[dataKey] = [];
+        }
+        registrosPorDia[dataKey].push(reg);
+      }
+    });
+
+    let minutosExtrasTotais = 0;
+    const limiteDiario = 8 * 60 + 48; // 8h 48m
+
+    // 2. Calcular minutos trabalhados por dia e somar o excedente
+    Object.keys(registrosPorDia).forEach((dia) => {
+      const minutosDia = calcularMinutosTrabalhados(registrosPorDia[dia]);
+      if (minutosDia > limiteDiario) {
+        minutosExtrasTotais += (minutosDia - limiteDiario);
+      }
+    });
+
+    return minutosExtrasTotais > 0 ? formatarMinutosParaHoras(minutosExtrasTotais) : '-';
   };
 
   const isInterval = filters.dataInicio && filters.dataFim && filters.dataInicio !== filters.dataFim;
@@ -633,11 +665,9 @@ export default function AdminDashboard() {
                             <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Horas Trabalhadas
                             </th>
-                            {!isInterval && (
-                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Horas Extras
-                              </th>
-                            )}
+                            <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              {isInterval ? "Soma Horas Extras" : "Horas Extras"}
+                            </th>
                             {!isInterval && (
                               <>
                                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -675,13 +705,20 @@ export default function AdminDashboard() {
                                 <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                   {employee.horasTrabalhadasPeriodo}
                                 </td>
-                                {!isInterval && (
-                                  <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                
+                                {/* Coluna Horas Extras Modificada */}
+                                <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                  {isInterval ? (
+                                    <div className="text-gray-600">
+                                      {calcularSomaHorasExtras(employee.registrosPeriodo)}
+                                    </div>
+                                  ) : (
                                     <div className={`${employee.horasTrabalhadasMinutos > (8 * 60 + 48) ? 'text-red-600' : 'text-gray-400'}`}>
                                       {calcularHorasExtras(employee.horasTrabalhadasMinutos)}
                                     </div>
-                                  </td>
-                                )}
+                                  )}
+                                </td>
+
                                 {!isInterval && (
                                   <>
                                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -718,60 +755,53 @@ export default function AdminDashboard() {
                                 {employee.nome}
                               </h3>
                               {!isInterval && (
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(employee.statusAtual)}`}>
+                                <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(employee.statusAtual)}`}>
                                   {getStatusText(employee.statusAtual)}
                                 </span>
                               )}
                             </div>
 
-                            {/* Informações principais */}
-                            <div className="space-y-2 text-xs">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Horas Trabalhadas:</span>
+                            {/* Grid de Informações */}
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                              <div className="bg-gray-50 p-2 rounded">
+                                <span className="block text-gray-500 mb-1">Horas Trabalhadas</span>
                                 <span className="font-medium text-gray-900">{employee.horasTrabalhadasPeriodo}</span>
                               </div>
-                              
-                              {!isInterval && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Horas Extras:</span>
-                                  <span className={`font-medium ${employee.horasTrabalhadasMinutos > (8 * 60 + 48) ? 'text-red-600' : 'text-gray-400'}`}>
-                                    {calcularHorasExtras(employee.horasTrabalhadasMinutos)}
-                                  </span>
-                                </div>
-                              )}
-
-                              {/* Horários - apenas para dia único */}
-                              {!isInterval && (
-                                <div className="mt-3 pt-3 border-t border-gray-200">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                      <span className="text-gray-600 block mb-1">Entrada Inicial:</span>
-                                      <span className="font-medium text-gray-900">
-                                        {entradaInicial ? formatarHora(entradaInicial.timestamp) : '-'}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-600 block mb-1">Saída Inicial:</span>
-                                      <span className="font-medium text-gray-900">
-                                        {saidaInicial ? formatarHora(saidaInicial.timestamp) : '-'}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-600 block mb-1">Entrada Final:</span>
-                                      <span className="font-medium text-gray-900">
-                                        {entradaFinal ? formatarHora(entradaFinal.timestamp) : '-'}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-600 block mb-1">Saída Final:</span>
-                                      <span className="font-medium text-gray-900">
-                                        {saidaFinal ? formatarHora(saidaFinal.timestamp) : '-'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
+                              <div className="bg-gray-50 p-2 rounded">
+                                <span className="block text-gray-500 mb-1">{isInterval ? "Soma H. Extras" : "Horas Extras"}</span>
+                                {isInterval ? (
+                                    <span className="font-medium text-gray-600">
+                                      {calcularSomaHorasExtras(employee.registrosPeriodo)}
+                                    </span>
+                                ) : (
+                                    <span className={`font-medium ${employee.horasTrabalhadasMinutos > (8 * 60 + 48) ? 'text-red-600' : 'text-gray-400'}`}>
+                                      {calcularHorasExtras(employee.horasTrabalhadasMinutos)}
+                                    </span>
+                                )}
+                              </div>
                             </div>
+
+                            {/* Detalhes de Ponto (apenas dia único) */}
+                            {!isInterval && (
+                              <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center border-t border-gray-100 pt-3">
+                                <div>
+                                  <span className="block text-gray-400 mb-1">Ent 1</span>
+                                  <span className="text-gray-700">{entradaInicial ? formatarHora(entradaInicial.timestamp) : '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-gray-400 mb-1">Sai 1</span>
+                                  <span className="text-gray-700">{saidaInicial ? formatarHora(saidaInicial.timestamp) : '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-gray-400 mb-1">Ent 2</span>
+                                  <span className="text-gray-700">{entradaFinal ? formatarHora(entradaFinal.timestamp) : '-'}</span>
+                                </div>
+                                <div>
+                                  <span className="block text-gray-400 mb-1">Sai 2</span>
+                                  <span className="text-gray-700">{saidaFinal ? formatarHora(saidaFinal.timestamp) : '-'}</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -781,15 +811,17 @@ export default function AdminDashboard() {
               </div>
             </div>
           ) : (
-            <BancoHoras />
+             // Componente BancoHoras precisa ser importado ou mantido se existir no projeto
+             <BancoHoras />
           )}
 
-          {/* Modal de Relatório */}
-          <ReportGeneratorModal
+          {showReportModal && (
+            <ReportGeneratorModal
             isOpen={showReportModal}
             onClose={() => setShowReportModal(false)}
             onGenerateReport={handleGenerateReport}
-          />
+            />
+          )}
         </div>
       </div>
     </ProtectedRoute>
