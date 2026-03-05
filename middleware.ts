@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/session"];
+const PUBLIC_PATHS = ["/login", "/api/auth"];
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
@@ -23,6 +23,6 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/auth/session).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.svg|.*\\.ico|.*\\.webp|.*\\.gif|api/auth).*)",
   ],
 };
