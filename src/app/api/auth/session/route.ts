@@ -71,8 +71,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, remaining: rl.remaining });
   } catch (error) {
-    console.error("Erro ao criar sessão:", error);
-    return NextResponse.json({ error: "Token inválido" }, { status: 401 });
+    console.error("Erro verifyIdToken:", error); // veja o log na Vercel
+  return NextResponse.json({ error: "Token inválido" }, { status: 401 });
   }
 }
 
