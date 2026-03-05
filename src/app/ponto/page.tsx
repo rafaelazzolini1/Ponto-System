@@ -3,10 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from '../../hooks/useAuth';
 import { Timestamp } from "firebase/firestore";
-import Cookies from "js-cookie";
 import { usePonto } from "../../components/ponto/usePonto";
 import { ProtectedRoute } from "../../hooks/RoleBasedRedirect";
-import { FaSignInAlt, FaSignOutAlt, FaClock, FaCalendarAlt, FaUser, FaSignOutAlt as FaLogout, FaFileAlt, FaMapMarkerAlt, FaLayerGroup, FaCheckCircle, FaXRay, FaCheck } from 'react-icons/fa';
+import { FaSignInAlt, FaSignOutAlt, FaClock, FaCalendarAlt, FaUser, FaSignOutAlt as FaLogout, FaFileAlt, FaMapMarkerAlt, FaLayerGroup, FaCheckCircle, FaCheck } from 'react-icons/fa';
 
 export default function PontoPageEmployee() {
   const { logout } = useAuth();
@@ -28,19 +27,11 @@ export default function PontoPageEmployee() {
     const interval = setInterval(() => {
       setHoraAtual(new Date());
     }, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     const inicializar = async () => {
-      const token = Cookies.get("firebaseToken");
-
-      if (!token) {
-        window.location.href = "/login";
-        return;
-      }
-
       await carregarDados();
       setCarregamentoInicial(false);
     };
@@ -54,7 +45,6 @@ export default function PontoPageEmployee() {
         setMensagemErro(null);
         setMensagemSucesso(null);
       }, 2000);
-
       return () => clearTimeout(timer);
     }
   }, [mensagemErro, mensagemSucesso]);
@@ -89,7 +79,6 @@ export default function PontoPageEmployee() {
     const amanha = new Date();
     amanha.setDate(amanha.getDate() + 1);
     amanha.setHours(0, 0, 0, 0);
-
     return amanha.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -121,7 +110,7 @@ export default function PontoPageEmployee() {
     <ProtectedRoute requiredRole="employee">
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
         <div className="max-w-4xl mx-auto flex flex-col space-y-6">
-          {/* Mensagens de Feedback */}
+
           {mensagemErro && (
             <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg animate-pulse">
               <div className="flex items-center gap-2">
@@ -140,7 +129,6 @@ export default function PontoPageEmployee() {
             </div>
           )}
 
-          {/* Alerta de Limite Diário Atingido */}
           {statusPonto.limiteDiarioAtingido && (
             <div className="p-4 bg-green-100 border border-green-200 text-green-800 rounded-lg">
               <div className="flex items-center gap-2">
@@ -186,24 +174,22 @@ export default function PontoPageEmployee() {
 
           {/* Conteúdo Principal */}
           <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col md:grid md:grid-cols-1 gap-6">
-            {/* Painel de Registro */}
             <div className="flex flex-col">
               <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <FaClock className="text-2xl text-black-600" />
                 Registrar Ponto
               </h2>
-
-              {/* Botão de Registro Único */}
               <div className="space-y-4 flex mb-10 flex-col">
                 <button
                   onClick={handleRegistrarPonto}
                   disabled={statusPonto.limiteDiarioAtingido || carregando}
-                  className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2 ${statusPonto.limiteDiarioAtingido || carregando
-                    ? 'bg-gray-300 cursor-not-allowed'
-                    : statusPonto.podeRegistrarEntrada
-                      ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 hover:shadow-xl transform hover:-translate-y-1 active:scale-95'
-                      : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:shadow-xl transform hover:-translate-y-1 active:scale-95'
-                    }`}
+                  className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2 ${
+                    statusPonto.limiteDiarioAtingido || carregando
+                      ? 'bg-gray-300 cursor-not-allowed'
+                      : statusPonto.podeRegistrarEntrada
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 hover:shadow-xl transform hover:-translate-y-1 active:scale-95'
+                        : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:shadow-xl transform hover:-translate-y-1 active:scale-95'
+                  }`}
                 >
                   {carregando ? (
                     <div className="flex items-center justify-center gap-2">
@@ -235,7 +221,6 @@ export default function PontoPageEmployee() {
                 <FaFileAlt className="text-2xl text-gray-600" />
                 Registros de Hoje
               </h2>
-
               {registrosHoje.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <FaLayerGroup className="mx-auto text-4xl text-gray-600" />
@@ -247,10 +232,11 @@ export default function PontoPageEmployee() {
                   {registrosHoje.map((registro, index) => (
                     <div
                       key={index}
-                      className={`p-3 rounded-lg border-l-4 transition-all duration-200 hover:shadow-md ${registro.tipo === 'entrada'
-                        ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-500'
-                        : 'bg-gradient-to-r from-red-50 to-red-100 border-red-500'
-                        }`}
+                      className={`p-3 rounded-lg border-l-4 transition-all duration-200 hover:shadow-md ${
+                        registro.tipo === 'entrada'
+                          ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-500'
+                          : 'bg-gradient-to-r from-red-50 to-red-100 border-red-500'
+                      }`}
                     >
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center justify-between">
@@ -268,7 +254,6 @@ export default function PontoPageEmployee() {
                             {formatarHora(registro.timestamp)}
                           </div>
                         </div>
-
                         {registro.enderecoAproximado && (
                           <div className="flex justify-between items-start">
                             <div className="flex items-center gap-1 text-xs text-gray-600 flex-1">
@@ -288,8 +273,8 @@ export default function PontoPageEmployee() {
                 </div>
               )}
             </div>
-
           </div>
+
           <button
             onClick={logout}
             className="w-full md:w-auto bg-gradient-to-r from-gray-500 to-gray-600 mt-10 text-white px-6 py-3 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg flex items-center justify-center gap-2"
@@ -297,8 +282,9 @@ export default function PontoPageEmployee() {
             <FaLogout />
             Sair
           </button>
+
         </div>
       </div>
-    </ProtectedRoute >
+    </ProtectedRoute>
   );
 }

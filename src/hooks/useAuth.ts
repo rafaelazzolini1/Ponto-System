@@ -1,15 +1,14 @@
 // hooks/useAuth.ts
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import Cookies from 'js-cookie';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 export interface AuthUser {
   cpf: string;
   nome: string;
-  role: 'employee' | 'admin';
+  role: "employee" | "admin";
   email?: string;
   departamento?: string;
 }
@@ -31,58 +30,46 @@ export const useAuth = (): UseAuthReturn => {
   const router = useRouter();
 
   useEffect(() => {
-    // ====== ESCUTAR MUDANÇAS NO FIREBASE AUTH ======
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       setError(null);
 
       try {
         if (firebaseUser) {
-          // Usuário autenticado no Firebase
-          const cpf = Cookies.get("cpf");
-          
-          if (!cpf) {
-            setError("CPF não encontrado nos cookies.");
+          const usersRef = collection(db, "users");
+          const q = query(usersRef, where("uid", "==", firebaseUser.uid));
+          const snapshot = await getDocs(q);
+
+          if (snapshot.empty) {
+            setError("Usuário não encontrado. Verifique se o campo 'uid' foi adicionado ao documento no Firestore.");
             setUser(null);
             setLoading(false);
             return;
           }
 
-          // Buscar dados do usuário no Firestore
-          const userDoc = await getDoc(doc(db, "users", cpf));
-          
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            
-            // Verificar se o campo role existe
-            if (!userData.role) {
-              setError("Usuário não possui role definida. Entre em contato com o administrador.");
-              setUser(null);
-              setLoading(false);
-              return;
-            }
+          const userDoc = snapshot.docs[0];
+          const cpf = userDoc.id;
+          const userData = userDoc.data();
 
-            const authUser: AuthUser = {
-              cpf: cpf,
-              nome: userData.nome,
-              role: userData.role,
-              email: userData.email,
-              departamento: userData.departamento
-            };
-
-            setUser(authUser);
-            setError(null);
-          } else {
-            setError("Usuário não encontrado no sistema.");
+          if (!userData.role) {
+            setError("Usuário sem role definida. Entre em contato com o administrador.");
             setUser(null);
+            setLoading(false);
+            return;
           }
+
+          setUser({
+            cpf,
+            nome: userData.nome,
+            role: userData.role,
+            email: userData.email,
+            departamento: userData.departamento,
+          });
         } else {
-          // Não há usuário autenticado
           setUser(null);
-          setError(null);
         }
       } catch (err) {
-        console.error("Erro ao carregar dados do usuário:", err);
+        console.error("Erro ao carregar usuário:", err);
         setError("Erro ao carregar dados do usuário.");
         setUser(null);
       } finally {
@@ -90,17 +77,14 @@ export const useAuth = (): UseAuthReturn => {
       }
     });
 
-    // Cleanup: remover listener quando componente desmontar
     return () => unsubscribe();
   }, []);
 
   // ====== LOGOUT ======
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     try {
       await auth.signOut();
-      Cookies.remove("firebaseToken");
-      Cookies.remove("tokenTimestamp");
-      Cookies.remove("cpf");
+      await fetch("/api/auth/session", { method: "DELETE" });
       setUser(null);
       setError(null);
       router.push("/login");
@@ -111,28 +95,22 @@ export const useAuth = (): UseAuthReturn => {
   };
 
   // ====== REDIRECIONAR BASEADO NA ROLE ======
-  const redirectBasedOnRole = () => {
+  const redirectBasedOnRole = (): void => {
     if (!user) {
       router.push("/login");
       return;
     }
-
-    if (user.role === 'employee') {
-      router.push("/ponto");
-    } else if (user.role === 'admin') {
-      router.push("/admin-dashboard");
-    } else {
-      setError("Role de usuário inválida.");
-      router.push("/login");
-    }
+    if (user.role === "employee") router.push("/ponto");
+    else if (user.role === "admin") router.push("/admin-dashboard");
+    else router.push("/login");
   };
 
   return {
     user,
     loading,
     error,
-    isEmployee: user?.role === 'employee',
-    isAdmin: user?.role === 'admin',
+    isEmployee: user?.role === "employee",
+    isAdmin: user?.role === "admin",
     logout,
     redirectBasedOnRole,
   };
