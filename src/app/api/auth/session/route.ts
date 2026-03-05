@@ -2,12 +2,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { cookies } from "next/headers";
-import { validateCsrf } from "@/lib/csrf";
 import { rateLimit } from "@/lib/rate-limit";
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
-// Extrai o IP real da requisição (Vercel passa no header x-forwarded-for)
 function getIp(req: NextRequest): string {
   return (
     req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
@@ -17,8 +15,7 @@ function getIp(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
-  // ── 1. Rate Limiting ──────────────────────────────────────────────────────
-  // Máximo de 10 tentativas de login por IP a cada 15 minutos
+  // Rate limiting: máximo 10 tentativas por IP a cada 15 minutos
   const ip = getIp(req);
   const rl = rateLimit(`login:${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 });
 
@@ -37,16 +34,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── 2. CSRF Validation ────────────────────────────────────────────────────
-  const csrfValid = await validateCsrf(req);
-  if (!csrfValid) {
-    return NextResponse.json(
-      { error: "Token CSRF inválido ou ausente." },
-      { status: 403 }
-    );
-  }
-
-  // ── 3. Criação da sessão ──────────────────────────────────────────────────
   const { token, cpf } = await req.json();
 
   if (!token || !cpf) {
@@ -82,26 +69,14 @@ export async function POST(req: NextRequest) {
       path: "/",
     });
 
-    return NextResponse.json({
-      ok: true,
-      remaining: rl.remaining, // informa tentativas restantes
-    });
+    return NextResponse.json({ ok: true, remaining: rl.remaining });
   } catch (error) {
     console.error("Erro ao criar sessão:", error);
     return NextResponse.json({ error: "Token inválido" }, { status: 401 });
   }
 }
 
-export async function DELETE(req: NextRequest) {
-  // CSRF também protege o logout
-  const csrfValid = await validateCsrf(req);
-  if (!csrfValid) {
-    return NextResponse.json(
-      { error: "Token CSRF inválido." },
-      { status: 403 }
-    );
-  }
-
+export async function DELETE() {
   const cookieStore = await cookies();
   cookieStore.delete("session");
   cookieStore.delete("cpf");
